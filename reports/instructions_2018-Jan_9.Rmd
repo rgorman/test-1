@@ -1,0 +1,514 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+
+
+
+## XML Pre-processing (This section describes how XML treebank files are prepared for analysis.)
+
+
+
+
+####  The first steps of pre-processing involve eXtensible Stylesheet Language Transformations (XSLT) which are implemented using the oXygen XML editor. Theoretically, it may be possible to use R with the package "xslt".
+
+***
+
+
+##### Note on file location: XSLT files are located in the "XSLT_files" subdirectory within the present working directory.
+
+
+***
+
+**General Notes:**
+
+* Many XML treebanks of individual works have been subdivided into parts, since the Perseids interface (http://sosol.perseids.org/sosol/) bogs down with files containing many more than one hundred sentences. As a result, there may be more than one series of sentence-level id attributes for a given treebank. This situations calls for the files to be consolidated and a single series of sentence id attributes to be generated.
+
+    + Create a XML file to hold all parts of a given work and copy the first file of the work into it.
+    + Add a "comment" element just after the "date" element at the top of the file. As the body of the "comment" element, insert the form of the standard reference for the work, for example, "Herodotus Book 1". This information will be used to add human readable references to all sentences and words in the file. This step makes debugging easier in later stages of data processing.
+    + Add each additional part of the work's treebank to the end of the new XML file.
+    + Run the XSLT script called "renumber_sent_consolidated_files.xsl" on the new XML file. Each sentence in the output file will contain an attribute called "consolidated_sent_id". **Note Well: the output directory must be set correctly for each XSLT script.**
+    
+* Human readable metadata is now added to each sentence and word element.
+
+     + On the output of the preceding XSLT, run the XSLT called "stand_ref_to_sent.xsl". This step will create an sentence attribute called "stand_ref" and insert the text of the "comment" element into this attribute, for example, "Aeschines Oration 1: s-1".
+     + On the output of the preceding XSLT file, run the XSLT called "stand_ref_to_word.xsl". This step will create for each word and attribute called "cite" and insert human readable metadata for sentence and word, for example, "Aeschines Oration 1: s-677 w-4".
+     
+* All files should be checked for missing values in any word attributes. **Such missing data may cause the code to break at a later step.** 
+
+    + Using the oXygen XML editor, use the "search and replace in files funciton" replace any empty quotation markes with "missing_value" or the like.
+    
+* Some of the older files in the Perseus Treebank contain features which will break later stages of the code. These features should be removed:
+
+    + On the target XML files, run the XSLT called "XSEG_removal.xsl". The attribute relation="XSEG" was a way to handle tokens improperly divided by the tokenizer. This method is no longer necessary, since the Arethusa/Alpheios platform now allows easy re-tokenization. The XSEG tag should therefore be avoided. **The code "XSEG_removal.xsl" will remove any sentence element containing a word with a relation attribute with the value "XSEG".**
+    + On the result of the preceding output, run the XSLT called "bad_numbering removal.xsl". Some older treebank files contain sentences in which the maximum value of the word id attributes does not match the number of tokens in the sentence. For example, a sentence might contain 10 word elements, but the id attribute of the last word in the sentence has the id value of 11. Such sentences will cause subsequent code to break. **The code "bad_numbering_removal.xsl" will remove any sentence element which has this unwanted characteristic.**
+    
+* These files are now ready for the next stage of processes sing, which add some basic data about word order as attributes to each word. This process is relatively complicated.
+
+***
+***
+
+###Notes on the XSLT scripts:
+
+```{r eval=FALSE}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:output method="xml" indent="yes"/>
+    
+    <xsl:template match="node() | @*">
+        <xsl:copy>
+            <xsl:apply-templates select="node() | @*"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="sentence">
+        <sentence>
+            <xsl:copy-of select="./@*"></xsl:copy-of>
+            <xsl:attribute name="consolidated_sent_id"><xsl:number></xsl:number></xsl:attribute>
+            <xsl:copy-of select="./node()"></xsl:copy-of>
+        </sentence>
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+The above code block is "renumber_sent_consolidated_files.xsl".  **Note that it will not execute from this R Notebook.**
+
+* All XSLT scripts are themselves XML code and must have a header with the appropriate code,, e.g., "\<?xml version="1.0" encoding="UTF-8"?>"
+* The second element ("xsl:stylesheet ...") is standard boilerplate for XSLT.
+* The third element (xsl:output ...) is used to produce a more readable XML document as output.
+* The essential workings of the script begin with the first template element. This template is sometimes referred to as the "standard identity transformation." Its function is to replicate all material in the target XML file in the output file.
+
+    + The attribute match attribute identifies the parts of the target XML on which the template should operate. Here the value of the match attribute is set to operate on all parts of the target file. The code **node()** indicates any XML element The code **@\*** indicates any XML attribute.  The two are joined with the pipe operator (|) meaning "or," and the resulting attribute will apply the template to all content of the target document.
+    + The operational part of this template is the copy element. This element will copy material in the target file as directed by the apply-templates element. The apply-templates element also calls other applicable templates (such as the second template here). The result is a reproduction of the target document with the changes applied by the other templates called.
+    
+* The second template element, through its **match** attribute, applies to every sentence element in the target file. When applied, it creates a new **sentence** element containing the results of these transformations:   
+
+    + The **copy-of** element makes a "deep copy" (i.e., a copy that includes children) of the material indicated by the **select** attribute. Here the period indicates the current element and the **/@\*** indicates all attributes of the relevant element. **The code thus preserves sentence attributes from the target file.**
+    + The **attribute** element creates a new attribute, whose name is given by the **name** attribute. 
+    + The value of the new attribute is created by the embedded **number** element. This element returns the integer position of the current node (here the current sentence element). *The result is a new sentence attribute caled "consolidated_sent_id" with a value of the integer position of the sentence, without regard to its original sentence id attribute.**
+    + The second **copy-of** element applies, through its **select** attribute, to all child elments of the current sentence node. Here, it copies into the output document all a sentence's word elements and their attributes.
+    
+***
+```{r eval=FALSE}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    version="2.0">
+    <xsl:output method="xml" indent="yes"/>
+    
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    
+    <xsl:template match="sentence">
+        <xsl:variable name="reference">
+            <xsl:value-of select="//comment"/>
+        </xsl:variable>
+        
+           <sentence>
+               <xsl:attribute name="stand_ref">
+                   <xsl:value-of select="$reference"/>: s-<xsl:value-of select="./@id"/>
+               </xsl:attribute>
+               
+               <xsl:attribute name="stand_ref">
+                   <xsl:value-of select="$reference"/>: s-<xsl:value-of select="./@consolidated_sent_id"/>
+               </xsl:attribute>
+               
+               <xsl:copy-of select="./node() | ./@*"></xsl:copy-of>
+           </sentence> 
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+
+The above code block is "stand_ref_to_sent.xsl".  **Note that it will not execute from this R Notebook.**
+
+* The first template is the standard "identity transformation" and replicates all material in the original XML and also applies changes as indicated in other relevant templates.
+* The second template applies to all sentence elements through its **match** attribute. It creates new **sentence** elements containing the results of these transformations:
+
+    + The **variable** element creates a variable named "reference" and, through the embedded **value-of** element populates the variable with the human-readable bibliographical data from the file's **comment** element.
+    + The first **attribute** element generates a sentence attributed called "stand_ref". Its value is drawn from the **reference** variable combined with the value of the sentence's **id** attribute.
+    
+* The third template is identical to the second except that it uses each sentence's **consolidated_sent_id** attribute to generate the value for the new attribute. Because, where the **id** and the **consolidated_sent_id** differ, the latter should be used, the **attribute** elements are ordered so as to give the consolidated sentence number the last word.   
+    
+***
+
+```{r eval=FALSE}
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="word">
+        <word>
+            <xsl:copy-of select="@*"/>
+            <xsl:attribute name="cite"><xsl:value-of select="parent::sentence/@stand_ref"/> w-<xsl:value-of select="./@id"/></xsl:attribute>
+        </word>
+        
+    </xsl:template>
+</xsl:stylesheet>
+
+
+```
+
+The above code block is "stand_ref_to_word.xsl".  **Note that it will not execute from this R Notebook.**
+
+* Once again, the main part of the script begins with the identity transformation.
+* The second template, through its **match** attribute, applies to each word element in the target XML file. It creates a new word element with the following features:
+
+    + The **copy-of** element replicates all word attributes of the original (as per the value of its **select** attribute).
+    + The **attribute** element creates an attribute named "cite" and gives it a value made up of several parts:
+    
+        + The first **value-of** element uses the so-called x-path axis **parent::sentence/** to access material from the parent sentence of the target word (See xquery documentation for more on these axes). In this case, the material replicated is the value of the sentence attribute containing the human-readable bibliographical data.
+        + The second **value-of** element replicates the value of the **id** attribute of the target word, as per the **select** attribute.
+        
+* The result is a **cite** value of this sort: "Herodotus Book 1 s-220 w-7".   
+
+***
+```{r eval=FALSE}
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="sentence">
+        <xsl:choose>
+            <xsl:when test="./word[@relation = 'XSEG']">
+               
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:copy-of select="."></xsl:copy-of>
+            </xsl:otherwise>
+        </xsl:choose>
+        
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+The above code block is "XSEG_removal.xsl".  **Note that it will not execute from this R Notebook.**
+
+* The main body of the script starts, as usual, with the identity transformation.
+* The second template, through its **match** attribute, applies to each sentence element in the target XML.
+    + The template's applicability is controlled through a **choose** element; this element applies a conditional test as specified in the nested **when** element.
+    + The **test** attribute of this element specifies that this part of the template applies to any sentence containing any word which has a **relation** attribute with a value of XSEG.
+    + This **when** element has no other content, giving the result that any sentence meeting the criterion will be dropped from the output file.
+    + The **otherwise** element applies when the **test** attribute of the preceding **when** element evaluates as **FALSE.** In this case, the embedded **copy-of** element replicates the target sentence and all its children, as per its **select** attribute.
+ 
+ 
+ ***
+ ***
+ ***
+ 
+
+### Adding word order and graph-theoretical data as attributes.
+
+The following section gives the details of the generation of new variables from basic treebank files. Among the variables are the Dependency Distance for each word. This is an integer value based on the word order. The value is the linear index (word id) of the parent word minus the linear index of the target word. Thus, a positive value means the target word precedes the parent, a negative value means that the target word follows the parent word.  
+
+Other variables include Subtree, Neighborhood, and Degree.  These are based on graphical features: a subtree is a set of vertices including the target word and all vertices transitively dependent on the target. The Neighborhood is here a set of vertices including the target and all vertices directly dependent on the target. Degree is the cardinality (count) of the set of vertices in the Neighborhood (exclusive of the target word).  In other words, Degree is the number of direct dependents of the target word.
+
+***
+
+##### The following script contains many calls for user defined functions.  The code for these functions will be given and explained after the principal code block for generation of word order and graphical variables.
+
+```{r}
+
+
+
+rm(list = ls())
+
+source("./DD_functions.R")
+
+require(XML)
+require(igraph)
+
+
+
+
+# Identify directory with the input files.
+input.dir <- "./input_1"
+
+# Identify directory for the output files.
+output.dir <- "./ouput_1"
+
+
+files.v <- dir(path=input.dir, pattern=".*xml") # A vector with each file name from input directory.
+
+
+for (i in seq_along(files.v)) {
+  
+  doc <- xmlParse(file.path(input.dir, files.v[i]))  # create object with full xml of tree file. 
+  
+  sentence.nodes <- getNodeSet(doc, "//sentence") # extract setences from full tree xml
+  
+  sentence.list <- xmlApply(sentence.nodes, xmlToList) # convert nodes to list object
+  
+  subtree.xml <- xmlNode("subTree_document") # create root node for new xml document
+  
+  
+  token.number.l <- list()
+  
+  net.token.number.l <- list()
+  
+  for (j in seq_along(sentence.list)) {
+    
+    
+    
+    
+    sent_working <- lapply(sentence.list[[j]][1:length(sentence.list[[j]])  -1], extract_words) # extract target sentence 
+    # with tokens as items in list object.
+    
+    node.list <- vector("list", 6)
+    names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree", 
+                          "DepDist", "Neighborhood", "Degree")
+    
+    
+    node.list$Ellipsis <- sapply(sent_working, ellipsis_identification) # logical vector with TRUE for each ellipsis node in target sentence
+    # vector is necessary input for function DD_criteria().
+    
+    punct.index.v <- unlist(lapply(sent_working, find_punct_index))
+    
+    edge.graph  <- extract_edge_graph(sent_working) # create graph object (package = "igraph") from sent_working.
+    
+    
+    subtree.l <- ego(edge.graph, 50, mode = "out") # List of elements; each element contains id values
+    # for subtree of given node. A subtree is the given node
+    # and its direct AND indirect dependents.
+    
+    neighborhood.l <- ego(edge.graph, 1, mode = "out") # List of elements; each element contains id values
+    # for neighborhood of given node. A neighborhood is
+    # a given node and its direct dependents ONLY.
+    
+    
+    node.list$Degree <- sapply(sent_working, extract_degree)
+    
+    node.list$DepDist <- sapply(sent_working, DD_calculation) # produces a  vector; this mode is suitible for insertion as 
+    # values of attributes in word elements of the XML output.
+    
+    node.list$Subtree_eligibility <-  sapply(sent_working, Subtree_criteria)
+    
+    node.list$Neighborhood <- sapply(sent_working, neighborhood_extraction)
+    
+    node.list$Subtree  <- sapply(sent_working, subtree_extraction)
+    
+    
+    
+    sentence_DD <- round(mean(sapply(sent_working, abs_DD_calculation), na.rm = TRUE), digits = 4 )
+    
+    token_number <- length(sent_working)
+    
+    net_token_number <- token_number - length(punct.index.v)
+    
+    
+    a <- unlist(sentence.list[[j]][length(sentence.list[[j]])]) # make vector of sentence attributes.
+    # sentence attributes appear in last sublist of each list
+    # in sentence.list. This list is accessed using 
+    # length(sentence.list[[j]]).
+    
+    sent.xml <- xmlNode("sentence") # create sentence node
+    
+    sent.xml  <-  addAttributes(sent.xml, id = a[".attrs.id"], 
+                                document_id = a[".attrs.document_id"], 
+                                stand_ref = a[".attrs.stand_ref"],
+                                subdoc = a[".attrs.subdoc"], span = a[".attrs.span"],
+                                
+                                Mean_DepDist = sentence_DD,
+                                Sentence_length = token_number) 
+    
+    
+    
+    sent.xml <- append.xmlNode(sent.xml, lapply(sent_working, populate_word_element))
+    
+    subtree.xml <- append.xmlNode(subtree.xml, sent.xml) # Insert sentence into document xml.
+    
+    token.number.l[[j]] <-  token_number
+    
+    net.token.number.l[[j]] <- net_token_number
+    
+  } # end of loop j
+  
+  
+  saveXML(subtree.xml, paste0("./output_1/", files.v[i]))
+  
+  
+  
+  
+} # end of loop i
+
+
+
+
+```
+
+
+
+* The code begins by cleaning the workspace with the command **rm(list = ls()) .**
+* The line **source("./DD_functions.R")** makes available the user-defined functions stored in the file named. **require(XML)** and 
+**require(igraph)** load two necessary packages. 
+    + The **XML** package allows us to manipulate xml code.
+    + The **igraph** package has many functions to analyze features of graphs.
+* The code **input.dir <- "./input_1"** and **output.dir <- "./ouput_1"** create character vectors to store the names of the directories for input and output.
+* The information in the **input.dir** is used to create a character vector (**files.v**) containing the names of all files: **files.v <- dir(path=input.dir, pattern=".*xml").**  The **dir()** function allows a **pattern =** argument which takes a regular expression to return only files that match the pattern.
+
+#### The main part of the code is a  pair of nested loops.  The outer loop (loop i) processes each file in the input directory. The inner loop (loop j) processes each sentence in the file returned by loop i.
+
+#### Notes on loop i.
+
+* **seq_along(files.v)** provides iteration for each file in **files.v.**
+* **doc <- xmlParse(file.path(input.dir, files.v[i]))** creates an object of class **XMLDocument** which is the imput for other XML functions. 
+    + **file.path()** is a convenience function which creates a character vector taking the inputs and adding the separator "/".
+    + Here the inputs are **input.dir**, the character vector of the input directory and **files.v[i]**, the character vector of file names. The index **[i]** restricts the input to the file corresponding with the current iteration of the **for()** loop.
+* **sentence.nodes <- getNodeSet(doc, "//sentence"):** The function **getNodeSet()** finds XML nodes which match a particular criterion. The matching criteria are specified using XPath syntax. Here **//sentence** is the XPath expression which identifies all sentence nodes in the input object **doc.** The two forward slashes indicate that the sentence node can be located at any level of the XML hierarchy.
+* **sentence.list <- xmlApply(sentence.nodes, xmlToList):** This code converts the data from a node set to a R list object. The R list object can be manipulated more easily than the node set object. 
+    + **xmlApply()** is a function analogous to the R's general family of **apply** functions.  Here it applies the funciton **xmlToList** to every node in **sentence.nodes.** The result is a list object in which the first level holds sentence data. The sentence level list holds a second level list with entries for each word.
+* **subtree.xml <- xmlNode("subTree_document"):** This line creates a root XML node from which a new output XML document is built by successive code. The name **"subTree_document"** is arbitrary. 
+* **token.number.l <- list():** creates a list object to contain the number of tokens in each sentence.
+* **saveXML(subtree.xml, paste0("./output_1/", files.v[i]))** saves the result of each iteration of loop i to an output file. **saveXML()** is a function from the XML package. The **paste0()** function supplies the file name of the output file.
+    + **paste0()** returns a character vector of its inputs. Here **"./output_1/"** is the directory, **file.v[i]** supplies the file name for the current iteration of loop i.
+
+
+#### Notes on loop j
+
+* **seq_along(sentence.list):** this parameter iterates for every element in **sentence.list.**
+* **sent_working <- lapply(sentence.list[[j]][1:length(sentence.list[[j]])  -1], extract_words):** creates a list object including the data from a single sentence. 
+    + **lapply()** applies a function to each item  in the input. Here the input is the sentence in **sentence.list** corresponding with the current iteration of the j **for()** loop. This input, however, is limited by indexing to exclude the last item in the level-2 list, which is not word data, but the names and values of sentence attributes.
+    + **[1:length(sentence.list[[j]])  -1]** uses the **length()** function to identify the last item in the jth iteration of the list. In combination with the  index **[1: ... -1],** the result is level-2 items but the last.
+    + The function applied here by **lapply()** isthe user created **extract_words().** This function produces a character vector for each input token. These vectors are arranged in a list object, since this is the output specific to **lapply.**
+* **node.list <- vector("list", 6)** creates a list.object to store the new variables to be created. It may save memory and time to assign space to such storage objects at the beginning of a loop instead of building them dymaically. Here the length of the resulting list is 6.
+* **names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree","DepDist", "Neighborhood", "Degree")** gives a name to each of the 6 list items to contain the new variables. 
+* **node.list$Ellipsis <- sapply(sent_working, ellipsis_identification)** populates the **Ellipsis** element of **node.list** with a logical or Boolean vector with TRUE or FALSE, according to whether the target token is a supplied ellipsis. Such not are not elligible for dependency distance calculations etc.
+    + **sapply()** applies a function to each input and produces a vector if possible. The input here is each list item of **sent_working** (i.e., each token of the sentence); the function is the user-defined **ellipsis_identification().**
+*  **punct.index.v <- unlist(lapply(sent_working, find_punct_index))** produces a numberic vector containing the linear index (i.e., the token id attribute value) of punctuation in the sentence. These tokens are excluded from calculations such as Dependency Distance.
+    + **lapply()** applies the user-defined function **find_punct_index()** to each word in **sent_working** and returns a list object.
+    + **unlist()** converts the output of **lapply()** to a vector from a list.
+* **edge.graph  <- extract_edge_graph(sent_working)** uses a user-defined function to create an object of the class "igraph". This object serves as the input for several graph-theoretical calculations.  
+* **subtree.l <- ego(edge.graph, 50, mode = "out")** creates a list object containing the linerar index (i.e., the token id attribute value) of vertices connected with the target token. The function **ego()** is from the igraph package. Here, its arguments are 
+    + **edge.graph**, the input igraph object; 
+    + **50**, the **order** argument which sets the limit in distance within which to find connected vertices (i.e., find connected vertices no more that 50 edges away from the target word); 
+    + and **mode = "out"**, which specifies only descendents in a directed graph such as a dependency tree. By default. 
+    + The list object returned by **ego()** (here **subtree.l**) contains a list item for each word in the input sentence. Each list item is of the type igraph vertex sequence (igraph.vs). The set includes the id value of the target word itself, although this parameter may be adjusted. 
+* **neighborhood.l <- ego(edge.graph, 1, mode = "out")** creates a list object containing the vertex neighborhood of the target word. The neighborhood is the target word itself and its immediate descendants. The igraph functio **ego()** is used, with its **order** argument set to 1.
+* **node.list$Degree <- sapply(sent_working, extract_degree)** populates the appropriate list item in **node.list** with a numerical vector of vertex degree for each token in the sentence. **sapply()** applies the user-defined function, **extract_degree()**, to each token in the input argument, **sent_working.**
+* **node.list$DepDist <- sapply(sent_working, DD_calculation)** populates the appropriate list item in **node.list** with a character vector of values representing the dependency distance of each token. **sapply()** applies the user-defined function **DD_calculation()** to each item in **sent_working.**
+* **node.list$Subtree_eligibility <-  sapply(sent_working, Subtree_criteria)** populates the appropriate list item in **node.list** with a logical vector with a value for each token in the input sentence. **sapply()** applies the user-defined function **Subtree_criteria()** to each item in the input **sentence_working.** This code returns FALSE for each punctuation mark except those used as coordinators or appositional elements.
+* **node.list$Neighborhood <- sapply(sent_working, neighborhood_extraction)** populates the appropriate list item in **node.list** with a character vector of the vertex neighborhood for each token. **sapply()** applies the user-defined function **neighborhood_extraction()** to each element in the input sentence. The vertex neighborhood is the set of linear indices for the target word and all vertices immediately dependent on it.
+* **node.list$Subtree  <- sapply(sent_working, subtree_extraction)** populates the appropriate list item in **node.list** with a character vector of the subtree for each token. **sapply()** applies the user-defined function **subtree_extraction()** to each item in **sent_working.** The vertex subtree is the set of linear indices for the target word and all words dependent on it, directly or indirectly.
+* **sentence_DD <- round(mean(sapply(sent_working, abs_DD_calculation), na.rm = TRUE), digits = 4 )** creates a numeric vector of one element representing the average dependency distance for eligible tokens in the sentence. 
+    + **sapply()** applies the user-defined function **abs_DD_calculation()** to each element in **sent_working**. The result is a numeric vector with an integer value or NA for each token in the input sentence.
+    + **mean()** returns the average of the values of the numeric vector returned by **sapply(sent_working, abs_DD_calculation).** Here, **mean()** takes the argument **na.rm = TRUE**, since the input vector to this function often contains NAs for punctuation, ellipses, etc.
+    + **round()** limits the number of decimals in the value returned by **mean()**. Here, the value of **round()** is specified by the argument **digits = 4.**
+* **token_number <- length(sent_working),** using the **length()** function, creates a integer vector with one element representing the length in tokens of the input sentence. 
+* **net_token_number <- token_number - length(punct.index.v)** creates an integer vector with one element representing the total length in tokens of the input sentence minus the number of punctuation marks in the sentence. 
+* **a <- unlist(sentence.list[[j]][length(sentence.list[[j]])])** creates a character vector of sentence attributes. Sentence attribute data are stored in the last item in list in **sentence.list.** To access the last item, the index **[length(sentence.list[[j]])]** is used. The function **length()** effectively gives the index of the last item in its input (here **sentence.list[[j]]**).
+* **sent.xml <- xmlNode("sentence")** creates an XML node named "sentence" to hold generated data for each sentence. The function **xmlNode()** is from the XML package.
+* **sent.xml  <-  addAttributes(sent.xml, id = a[".attrs.id"], document_id = a[".attrs.document_id"], stand_ref = a[".attrs.stand_ref"], subdoc = a[".attrs.subdoc"], span = a[".attrs.span"], Mean_DepDist = sentence_DD, Sentence_length = token_number)** populates the sentence xml node with a set of attributes. Most attributes have been merely extracted from the corresponding input setence node. 
+    + **a[".attrs.id"]** is the input sentence id attribute.
+    + **a[".attrs.document_id"]** is the cts:urn of the input sentence.
+    + **a[".attrs.stand_ref"]** is the human-readable bibliographical reference of the source of the input sentence.
+    + **a[".attrs.subdoc"]** is the section number of the source for the input sentence.
+    + **Mean_DepDist = sentence_DD** adds the new variable giving average dependency distance.
+    + **Sentence_length = token_number** adds the total number of tokens in the sentence.
+* **sent.xml <- append.xmlNode(sent.xml, lapply(sent_working, populate_word_element))** adds word elements to each sentence node and populates each word element with attributes from the input word element and the newly generated attributes. 
+    + **append.xmlNode()** is a function from the XML package which creates a new child node and appends it to the target, provided by the input argument (here, **sent.xml**).
+    + The second argument of **append.xmlNode()** is supplied by **lapply(),** which applies the user-defined function **populate_word_elements()** to each element of **sent_working**.
+* **subtree.xml <- append.xmlNode(subtree.xml, sent.xml)** appends the populated sentence node to the root node (here, **subtree.xml**).
+* **token.number.l[[j]] <-  token_number** populates the list object with token number in each sentence.
+* ** net.token.number.l[[j]] <- net_token_number** populates the list object with token number minus punctuation in each sentence.
+
+
+***
+***
+***
+
+### User-Defined Functions¶
+
+```{r}
+extract_words <- function(x) { #  function to extract data from each word element in sentence. 
+                               
+  words.v <-  unlist(x)
+  return  (words.v)
+}
+
+```
+
+
+* **extract_words()** takes a list of tokens as its input.
+    + **words.v <-  unlist(x)** transforms the list object into a character vector.
+    + Because the **lapply()** function supplies input one token at a time, the vector **words.v** produces a named character vector with the names generated from the name of the XLM element and attribute as follows: "word.id", "word.form", "word.lemma", "word.postag", "word.relation", "word.head", and "word.cite". 
+* The **return()** function specifies the value to be passed to the matrix code from the user-defined function. Its use is optional; if **return()** is omitted, the function returns the last value evaluated by the funciton code.        
+    
+    
+```{r}
+ellipsis_identification <- function(x) {
+  ellipse_check <- "insertion_id" %in% names(x)
+  return(ellipse_check)
+}
+```
+
+* **ellipsis_identification** checks a token to see if it is an ellipsis. All ellipsis word elements generated by the Arethusa platform contain an attributed named "insertion_id". The controlling function **sapply()** here inputs one token at time from the input sentence and outputs a logical vector with TRUE or FALSE for each token in the input sentence. The values of this vector are generated by the **%in%** operator which checks its first argument against its second.
+
+```{r}
+find_punct_index <- function(x) { # A function to return id values of each punctuation mark in sentence.
+  word.v <- NULL
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+    
+  
+  if (TRUE %in% word.v) { 
+    return(as.numeric(x["id"]))
+  }
+  
+}
+```
+* **find_punct_index()** returns the index values of any token whose relation attribute indicates that it is a punctuation mark.  Punctuation marks of the relation values indicated should not have dependencies and should not be figured into dependency distances, etc. When the function is applied to **sent_working** by **lapply()** and the result is sent to **unlist()**, the code returns a named numeric vector. 
+    + **word.v <- NULL** creates a vector to hold the results from the evaluation of relation values.
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** returns true if the relation of the input element is "AuxX", which is reserved for commas. 
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** returns TRUE if the relation of the input element is "AuxK", which is reserved for sentence final punctuation.
+    + **word.v <- append(word.v, x["relation"] == "AuxG")** returns TRUE if the relation of the input element is "AuxG", which is generally used for quotation marks, parentheses and the like.
+    
+* The above code produces a logical vector. This vector is input for the next step in the function:
+    + The **if()** function with the argument **TRUE %in% word.v** tests for whether the target token meets any of the criteria specified for punctuation. If any of the previous code put TRUE in the **word.v** vector, this code block will return the index value of the current token from the **find_pnct_index()** function.
+    + **as.numeric(x["id"])** is used as the argument for the **return()** function in order to return a number. As input **x["id"]** is a character vector. As such, it does not allow the numeric calculation that will be necessary in subsequent code. The funciton **as.numeric()** coerces its argument to a number, if possible.
+    
+    
+    
+    
