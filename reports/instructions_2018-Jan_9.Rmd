@@ -509,6 +509,41 @@ find_punct_index <- function(x) { # A function to return id values of each punct
     + The **if()** function with the argument **TRUE %in% word.v** tests for whether the target token meets any of the criteria specified for punctuation. If any of the previous code put TRUE in the **word.v** vector, this code block will return the index value of the current token from the **find_pnct_index()** function.
     + **as.numeric(x["id"])** is used as the argument for the **return()** function in order to return a number. As input **x["id"]** is a character vector. As such, it does not allow the numeric calculation that will be necessary in subsequent code. The funciton **as.numeric()** coerces its argument to a number, if possible.
     
+   
+   
     
+    
+    
+```{r}
+extract_edge_graph <- function(sentence) {
+  a <- find_heads(sentence)
+  b <- find_ids(sentence)
+  m <- matrix(a, ncol = 1)
+  m <- cbind(m, b)
+  index <- which(m[, 1] > 0)
+  m <- m[index, ]
+  if (length(m) == 2) {
+    m <- matrix(m, nrow = 1)
+  }
+  g <- graph_from_edgelist(m)
+  return(g)
+}
+
+```
+
+* **extract_edge_graph()** returns an igraph object (cf. the igraph package) representing **sent_working.** Note that this function itself includes two user-defined function which will be detailed in the next sections.
+
+    + **a <- find_heads(sentence)** creates a numerical vector of values of the head attributes of the input sentence.
+    + **b <- find_ids(sentence)** creates a numerical vector of values of id attributes.
+    + **m <- matrix(a, ncol = 1)** creates a matrix object from vector **a**. This type of object is necessary later in this function. Initially, the matrix will have as many rows as tokens in the input sentence.
+    + **m <- cbind(m, b)** adds vector **b** as a column to a matrix **m**. The second argument must have the same length as the number of rows in the first argument.
+    + **index <- which(m[, 1] > 0)** creates a numerical vector of the values of the rows in which the head attribute greater than 0. This identifies the tokens which depend directly on the hypothetical sentence root, usually the sentence PRED and punctuation without dependencies. The relationship between these tokens and the root is not used in our calculations.  Of course the PRED itself, and any other tokens dependent on the root are not necessarily excluded.
+        + The function **which()** returns the index values of the items identified by the arguments. Here **m[, 1] > 0** checks the first column of all rows for a value greater than 0. When subsetting a matrix with **[...],** reference to the two dimensions of the matrix is given by inegers separated by a comma. The first number indicates row, the second indicates column. It a number is omitted, all rows (or columns) are included. Thus, **m[, 1]** refers to the first column of all rows of matrix **m.**
+    + **m <- m[index, ]** changes matrix **m** by dropping the rows indicated by the **index** vector. The subset **[index, ]** means the row numbers given in the **index** vector and all associated columns.
+    
+* The next step in this function is an **if()** block. This block is necessary in case of very short sentences. For example, there may be a sentence of two words, a PRED with a head attribute of 0 and a SBJ with a head of, say, 1, dependent on the PRED.  The preceding code in this function will remove the values for the PRED from matrix **m** leaving an object with two values only, the head and id attributes of teh SBJ. The problem is that R will convert this matrix of two elements to a simple numerical vector. Such a vector is not accepted as input in the igraph function needed to complete the current function. 
+    + The **if()** function has the argument **length(m) == 2**. The length of a matrix is the product of the number of its row and the number of its columns. So this argument will catch sentences of only one token not dependent on the root.
+    + **m <- matrix(m, nrow = 1)** reestablishes **m** as a matrix of one row and two columns, not a vector. 
+    + **g <- graph_from_edgelist(m)** produces a igraph object representing a graph of the input sentence. The function **graph_from_edgelist()** takes an edgelist as its input.  An edgelist is a matrix giving, for edge edge in the graph, the specification of the two vertices connected by that edge. Matrix **m** is such an edgelist.
     
     
