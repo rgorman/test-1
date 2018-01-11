@@ -249,8 +249,8 @@ Other variables include Subtree, Neighborhood, and Degree.  These are based on g
 
 ##### The following script contains many calls for user defined functions.  The code for these functions will be given and explained after the principal code block for generation of word order and graphical variables.
 
-```{r}
 
+```{r}
 
 
 rm(list = ls())
@@ -318,7 +318,7 @@ for (i in seq_along(files.v)) {
     # a given node and its direct dependents ONLY.
     
     
-    node.list$Degree <- sapply(sent_working, extract_degree)
+    node.list$Degree <- degree(edge.graph, mode = "out")
     
     node.list$DepDist <- sapply(sent_working, DD_calculation) # produces a  vector; this mode is suitible for insertion as 
     # values of attributes in word elements of the XML output.
@@ -374,10 +374,7 @@ for (i in seq_along(files.v)) {
 } # end of loop i
 
 
-
-
 ```
-
 
 
 * The code begins by cleaning the workspace with the command **rm(list = ls()) .**
@@ -426,7 +423,7 @@ for (i in seq_along(files.v)) {
     + and **mode = "out"**, which specifies only descendents in a directed graph such as a dependency tree. By default. 
     + The list object returned by **ego()** (here **subtree.l**) contains a list item for each word in the input sentence. Each list item is of the type igraph vertex sequence (igraph.vs). The set includes the id value of the target word itself, although this parameter may be adjusted. 
 * **neighborhood.l <- ego(edge.graph, 1, mode = "out")** creates a list object containing the vertex neighborhood of the target word. The neighborhood is the target word itself and its immediate descendants. The igraph functio **ego()** is used, with its **order** argument set to 1.
-* **node.list$Degree <- sapply(sent_working, extract_degree)** populates the appropriate list item in **node.list** with a numerical vector of vertex degree for each token in the sentence. **sapply()** applies the user-defined function, **extract_degree()**, to each token in the input argument, **sent_working.**
+* **node.list$Degree <- degree(edge.graph, mode = "out")** populates the appropriate list item in **node.list** with a numerical vector of vertex degree for each token in the sentence. **degree** is a function of the igraph package.
 * **node.list$DepDist <- sapply(sent_working, DD_calculation)** populates the appropriate list item in **node.list** with a character vector of values representing the dependency distance of each token. **sapply()** applies the user-defined function **DD_calculation()** to each item in **sent_working.**
 * **node.list$Subtree_eligibility <-  sapply(sent_working, Subtree_criteria)** populates the appropriate list item in **node.list** with a logical vector with a value for each token in the input sentence. **sapply()** applies the user-defined function **Subtree_criteria()** to each item in the input **sentence_working.** This code returns FALSE for each punctuation mark except those used as coordinators or appositional elements.
 * **node.list$Neighborhood <- sapply(sent_working, neighborhood_extraction)** populates the appropriate list item in **node.list** with a character vector of the vertex neighborhood for each token. **sapply()** applies the user-defined function **neighborhood_extraction()** to each element in the input sentence. The vertex neighborhood is the set of linear indices for the target word and all vertices immediately dependent on it.
@@ -545,5 +542,78 @@ extract_edge_graph <- function(sentence) {
     + The **if()** function has the argument **length(m) == 2**. The length of a matrix is the product of the number of its row and the number of its columns. So this argument will catch sentences of only one token not dependent on the root.
     + **m <- matrix(m, nrow = 1)** reestablishes **m** as a matrix of one row and two columns, not a vector. 
     + **g <- graph_from_edgelist(m)** produces a igraph object representing a graph of the input sentence. The function **graph_from_edgelist()** takes an edgelist as its input.  An edgelist is a matrix giving, for edge edge in the graph, the specification of the two vertices connected by that edge. Matrix **m** is such an edgelist.
+     + **return(g)** outputs the igraph object to the matrix code.
+     
+     
+     
     
     
+```{r}
+
+find_heads <- function(sentence) {
+  a <- unlist(sentence)
+  
+  a <-  a[which(names(a) == "word.head")]
+  a <- as.numeric(a)
+  return(a)
+}
+
+
+```
+
+* **find_heads()** returns a numeric vector of the values of the head attributes of all tokens in the input sentence.
+    + **a <- unlist(sentence)**  creates a character vector containing elements with the values of all tokens in input sentence.
+    + **a <-  (a[which(names(a) == "word.head")]** reduces the contents of vector **a** to the values of the head attribute of all tokens.
+        + **names(a) == "word.head"** returns a logical vector with TRUE for each element in **a** with the name "word.head".
+        + **which()** returns a vector of index integers giving the position of each TRUE element in its input.
+        + **a[...]** subsets the vector **a** according to the evaluation of the code between the square brackets.
+    + **return(a)** outputs the vector **a** to the matrix code.    
+    
+    
+    
+```{r}
+
+find_ids <- function(sentence) {
+  a <- unlist(sentence)
+  
+  a <-  a[which(names(a) == "word.id")]
+  a <- as.numeric(a)
+  return(a)
+}
+
+```
+
+* **find_ids()** returns a numeric vector of the values of the id attributes of all tokens in the input sentence.
+    + **a <- unlist(sentence)**  creates a character vector containing elements with the values of all tokens in input sentence.
+    + **a <-  (a[which(names(a) == "word.head")]** reduces the contents of vector **a** to the values of the id attribute of all tokens.
+        + **names(a) == "word.id"** returns a logical vector with TRUE for each element in **a** with the name "word.id".
+        + **which()** returns a vector of index integers giving the position of each TRUE element in its input.
+        + **a[...]** subsets the vector **a** according to the evaluation of the code between the square brackets.
+    + **return(a)** outputs the vector **a** to the matrix code.    
+    
+    
+    
+```{r}
+
+extract_degree <- function(x) {
+  a <- degree(edge.graph, mode = "out")
+  word.v <- NULL 
+  
+  if (length(a) < length(sent_working)) {
+    a <- append(a, 0)
+  }
+  
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  
+  if (TRUE %in% word.v) {
+    return(NA)
+  } else {
+    return(a[as.numeric(x["id"])])
+  }
+  
+}
+
+
+```
