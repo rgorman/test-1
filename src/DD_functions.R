@@ -215,7 +215,7 @@ neighborhood_extraction <- function(x) {
     
     if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
       a <- neighborhood.l[[as.numeric(x["id"])]]
-      a <- paste0(a, sep="", collapse = " ")
+      a <- paste0(a, collapse = " ")
       
     } else {
       a <- NA

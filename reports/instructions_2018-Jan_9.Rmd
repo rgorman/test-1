@@ -711,4 +711,84 @@ DD_calculation <- function(x) { # A function to calculate DD for each eligible n
     + **return(node_DD.v)** passes the Dependency Distance of the target word to the matrix code.                  
                       
  
+```{r}
+
+Subtree_criteria <- function(x) { # function to identify tokens for which no DD should be figured.
+  
+  word.v <- NULL 
+  
+  
+  # a set of lines to catch punctuation; no DD should be figured for punctuation marks. 
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  
+  
+  if (TRUE %in% word.v) { # Checks word.v for any TRUE value.  Such a value disqualifies node from DD calculation.
+    return(FALSE) # Node does NOT qualify for DD calculation.
+  } else
+    return(TRUE) # Node may be used in DD calculation.
+  
+}
+
+```
+
+
+* **Subtree_criteria( )** returns a logical vector with an element for each token in the input sentence, TRUE if the token may be part of a subtree, otherwise FALSE.
+    + **word.v <- NULL** creates a vector in which to store the results of the various tests.
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** adds TRUE if the relation value of the input is "AuxX", the annotation for a comma without dependencies.
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** adds TRUE if the relation value of the input is "AuxK", the annotation for sentence-final punctuation.
+    + **word.v <- append(word.v, x["relation"] == "AuxG") adds TRUE if the relation value of the input is "AuxG", the annotation for bracketing punctuation.
+    + **if (TRUE %in% word.v) { ... }** checks whether any of the criteria specified above have been met using the **%in%** operator.
+        + **return(FALSE)** passes the value of FALSE to the output vector if any of the above criteria is TRUE.
+    + **else {...}** handles tokens for which none of the specified criteria have been met.
+        + ** return(TRUE)** passes the value of True to the output vector, indicating that the target token does qualify for subtree consideration and related calculations.
+        
+
+        
+```{r}
+
+neighborhood_extraction <- function(x) {
+  
+  if (as.numeric(x["id"]) <= length(neighborhood.l) 
+      & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility))  {
+    
+    if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
+      a <- neighborhood.l[[as.numeric(x["id"])]]
+      a <- paste0(a, collapse = " ")
+      
+    } else {
+      a <- NA
+    }
+    
+    
+  } else {
+    
+    a <- NA
+    
+    
+  }
+  
+
+  return(a)
+}
+
+
+```
+
+* **neighborhood_extraction( )** returns a named character vector containing the id attribute values of the target word and its immediate dependents.
+    + The first **if ( ) {...}** command selects for tokens whose id attribute values fall within the span of the **neighborhood.l** igraph object and the **Subtree_eligibility** vector stored in **node.list**. Vagaries in annotation sometimes cause the igraph functions to produce a vector set (as in **neighborhood.l**) with fewer vertices than there are tokens in the sentence. Such instances break the code. 
+        + **as.numeric(x["id"]) <= length(neighborhood.l) & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** joins two conditions with the **and** operator (**&**). The collocation returns TRUE if the code on both sides of the **&** evaluates as TRUE.
+            + **as.numeric(x["id"]) <= length(neighborhood.l)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in **neighborhood.l** The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+            + **as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in the **Subtree_eligibility** vector of **node.list**. The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+        + The nested **if ( ) {...}** function checks for whether the target token is eligible for a subtree according to the criteria computed for the **Subtree_eligibility** vector.
+            + **node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE** returns TRUE if element of the **Subtree_eligibility** vector corresponding to the input token's id value is also TRUE. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+            + **a <- neighborhood.l[[as.numeric(x["id"])]]** populates a vector with the element of the igraph object **neighborhood.l** which corresponds to the id value of the input token. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+            + **a <- paste0(a, collapse = " ")** transforms the input vector **a** from an igraph vertex sequence to a character vector. The function **paste0( )** returns a vector of character strings from its input. The argument **collapse = " "** sets the function to join all elements of the input to a single string element in the output, each separate element of the input now separated by a white space in the single output string.
+        + The nested **else {...}** command applies the enclosed code to an input token which is not eligible for a subtree.
+            + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+    + The outer **else {...}** command applies the enclosed code to an input token whose id value does not fall within the number of elements in **neighborhood.l** or **Subtree_eligibility**.
+        + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+    + **return(a)** passes the value of **a** to the matrix code.    
+           
 
