@@ -792,3 +792,143 @@ neighborhood_extraction <- function(x) {
     + **return(a)** passes the value of **a** to the matrix code.    
            
 
+```{r}
+
+subtree_extraction <- function(x) {
+  
+  if (as.numeric(x["id"]) <= length(subtree.l)
+      & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)) {
+    
+    if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
+      a <- subtree.l[[as.numeric(x["id"])]]
+      a <- paste0(a, collapse = " ")
+      
+    } else {
+      a <- NA
+    }
+    
+    
+  } else {
+    
+    a <- NA
+    
+  }
+ 
+  return(a)
+}
+
+
+```
+
+* **subtree_extraction( )** returns a named character vector containing the id attribute values for the target word and its descendants, both direct and indirect.
+    + The first **if ( ) {...}** command selects for tokens whose id attribute values fall within the span of the **neighborhood.l** igraph object and the **Subtree_eligibility** vector stored in **node.list**. Vagaries in annotation sometimes cause the igraph functions to produce a vector set (as in **neighborhood.l**) with fewer vertices than there are tokens in the sentence. Such instances break the code. 
+        + **as.numeric(x["id"]) <= length(neighborhood.l) & as.numeric(x["id"]) <= length(node.list dollar-sign Subtree_eligibility)** joins two conditions with the **and** operator (**&**). The collocation returns TRUE if the code on both sides of the **&** evaluates as TRUE.
+            + **as.numeric(x["id"]) <= length(neighborhood.l)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in **neighborhood.l** The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+            + **as.numeric(x["id"]) <= length(node.list dollar-sign Subtree_eligibility)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in the **Subtree_eligibility** vector of **node.list**. The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+        + The nested **if ( ) {...}** function checks for whether the target token is eligible for a subtree according to the criteria computed for the **Subtree_eligibility** vector.
+            + **node.list dollar-sign Subtree_eligibility[[as.numeric(x["id"])]] == TRUE** returns TRUE if element of the **Subtree_eligibility** vector corresponding to the input token's id value is also TRUE. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+                + **a <- subtree.l[[as.numeric(x["id"])]]** populates a vector with the element of the igraph object **subtree.l** which corresponds to the id value of the input token. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+                + **a <- paste0(a, collapse = " ")** transforms the input vector **a** from an igraph vertex sequence to a character vector. The function **paste0( )** returns a vector of character strings from its input. The argument **collapse = " "** sets the function to join all elements of the input to a single string element in the output, each separate element of the input now separated by a white space in the single output string.
+       + The nested **else {...}** command applies the enclosed code to an input token which is not eligible for a subtree.
+           + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+   + The outer **else {...}** command applies the enclosed code to an input token whose id value does not fall within the number of elements in **subtree.l** or **Subtree_eligibility**.
+       + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+   + **return(a)** passes the value of **a** to the matrix code.  
+       
+ 
+ 
+```{r}
+
+abs_DD_calculation <- function(x) { # A function to calculate DD for each eligible node.
+  a <- NULL
+  word.v <- NULL
+  word.v <- append(word.v, as.numeric(x["head"]) == 0) # Nodes dependent on 0 (sentence root, etc) have no DD.
+  
+  # a set of lines to catch punctuation; no DD should be figured for punctuation marks. This code is somewhat redundant,
+  # since it checks for relation values commonly assigned to punctuation and also checks part of speech attribute
+  # for value "punctuation."
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  word.v <- append(word.v, substr(x["postag"], 1, 1) == "u") # If part of speech is "punctuation", mark TRUE.
+  
+  
+  word.v <- append(word.v, "insertion_id" %in% names(x)) # Nodes that are ellipses have no DD.
+  word.v <- append(word.v, node.list$Ellipsis[as.numeric(x["head"])]) # Nodes dependent on ellipses have no DD. This assessment
+  # requires ellipsis.v as input. That vector is the output of
+  # function ellip_1().
+  
+  node_DD.v <- NULL
+  
+  
+  if (TRUE %in% word.v) { # do not calculate DD
+    
+    node_DD.v <- NA
+    
+  } else {
+    
+    
+    b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])),
+                                                                                   punct.index.v))
+    
+    if (as.numeric(x["head"]) > as.numeric(x["id"])) { # Selects for a head node that follows the child node.
+      
+      a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)  # Effectively moves child node (the subtrahend) closer in value to the head.
+      node_DD.v <- append(node_DD.v, a) 
+      
+    } else { # Selects for a head node that precedes the child node.
+      # p.holder.v <- (heads.v[k] + p.holder.v) - ids.v[k] # Effectively moves head node (the minuend) closer in value to the child.
+      
+      a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"]) # Effectively moves head node (the minuend) closer in value to the child.
+      
+      
+      node_DD.v <- append(node_DD.v, a)
+      
+      
+    }
+    
+  }
+  
+  return(abs(node_DD.v))
+  
+} # end of DD_calculation() function.
+
+```
+
+* **abs_DD_calculation( )** returns a named numeric vector giving the absolute value of the Dependency Distance for the input word. This function differs from **DD_calculation( )** in that **DD_calculation( )** returns negative as well as positive value, and also lumps together values less than -6 as "LT-6" and those greater than 6 as "GT6". Because these composite value are strings and cannot be coerced to the numeric class, so the results of **DD_calculation( )** are character vectors.
+    + **word.v <- NULL** creates an empty vector to store logical values based on eligibility for dependency distance calculation.
+    + **word.v <- append(word.v, as.numeric(x["head"]) == 0)** adds a logical value to the end of the vector **word.v**. The value is TRUE if the target node has a head attribute with a value of 0. This step is meant to catch the sentence root, etc. which have no DD.
+        + **as.numeric(x["head"]) == 0** returns TRUE for a target element for which the head attribute is 0. The function **as.numeric** is necessary because the word attributes in the input sentences have been stored as character vectors. 
+        + **x["head"]** selects the subset consisting of the vector element with the name "head." This notation is possible because the data in the list object **sent_working** are stored in a named character vector. The variable **x** indicates whatever is passed into the function by the matrix code. Here, the words in **sent_working** passed in one at a time by the function **sapply.**
+        + **append( )** adds its second argument to its first argument. 
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxX", FALSE otherwise. AuxX is the annotation for commas with no dependencies.   
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxK", FALSE otherwise. AuxK is the annotation for sentence-final punctuation, which  have no dependencies. 
+    + ** word.v <- append(word.v, x["relation"] == "AuxG")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxG", FALSE otherwise. AuxG is the annotation for bracketing punctuation, which  have no dependencies. 
+    + **word.v <- append(word.v, substr(x["postag"], 1, 1) == "u")** adds a logical value TRUE to **word.v** if the postag value indicates that the target word is a punctuation mark, which usually do not have dependencies. This code is a redundancy, since punctuation marks ineligible for dependency distance should be caught by the preceding code checking the relation attribute.
+        + **substr(x["postag"], 1, 1)** returns the first character of the string with the name "postag".  The function **substr()** belongs to base R. Its first argument is the input string. The second argument is the index of the first character in the string to be returned. The third argument is the index of the last character in the string to be returned. Here, the character representing the part of speech is a one-letter long first element in the postag string. Thus, **1, 1** is passed to the function as second and third argument meaning: "return the first and only the first character of the input string."
+        + **substr(x["postag"], 1, 1) == "u"** returns TRUE if the first character of **x["postag"]** is "u", the symbol for a punctuation mark; otherwise it returns FALSE.
+    + **word.v <- append(word.v, "insertion_id" %in% names(x))** adds a logical value to **word.v**, TRUE if the target word is an ellipsis, FALSE otherwose. Dependency Distance should not be calculated for ellipses, since such words have no location in the linear order of a sentence.
+        + **"insertion_id" %in% names(x)** uses the **%in%** operator to return TRUE if the string "insertion_id" is among the names of the attributes of the target word; otherwise it returns FALSE. The **insertion_id** attribute appears only in words added through the ellipsis function of Arethusa.
+    + **word.v <- append(word.v, node.list\$Ellipsis[as.numeric(x["head"])])** adds a logical value to **word.v**, TRUE if the word indicated by the head attribute of the target word is an ellipsis. Words dependent on ellipses have no Dependency Distance.
+        + **as.numeric(x["head"])** returns the value for the head attribute of the target word and coreces it to a numeric vector.
+        + **node.list\$Ellipsis[...]** subsets the specified  element of the **Ellipsis** sublist in the **node.list** list object. This sublist contains a named logical vector with TRUE for an ellipsis, otherwise FALSE. This vector is created by the user-defined function **ellipsis_identification( )**, which has run earlier in the **j loop**. 
+        + **node_DD.v <- NULL** creates an empty vector to contain the Dependency Distance value for the target word. 
+    + The **if( ) { }** function controls the code which calculates the Dependency Distance.
+        + The argument **TRUE %in% word.v** uses the **%in%** operator to identify words that are not eligible for DD calculation. If any of the preceding code has added TRUE to the vector **word.v**, that word should not have a dependency distance.
+            + **node_DD.v <- NA** populates the vector **node_DD.v** with an NA element. NA is a logical constant which indicates "not applicable". 
+        + The  **else{ }** function applies the code block it contains to any word not meeting the criteria specified in its controlling **if( ) { }** function. Here it applies to all words eligible for Dependency Distance.   
+            + **b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v))** populates the vector **b** with the number of punctuation marks between the target word and its head.
+                + **seq(as.numeric(x["head"]), as.numeric(x["id"]))** returns a sequence of integers beginning with the value of the head of the target word and ending with the id value of the target word itself. The function **seq( )** generates a sequence of numbers; the first argument is the number from which to start the sequence, the second the number with which to end it.  Here, both arguments are wrapped in **as.numeric( )** because the input data for the input word are stored in a character vector.
+                + **length(seq(as.numeric(x["head"]), as.numeric(x["id"])))** returns the cardinality of the vector containing the interval from the target word's head attribute value to the value of its id attrubute. The function **length( )** returns the cardinality of the input.
+                + **setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v)** returns a vector containing the index values for the inclusive interval from the value of the target word's head attribute to the value of its id attribute, **excluding from the sequence the index values for punctuation marks.** The function **setdiff( )** returns the elements of its first argument which are not also in its second argument. Here, the second argument, **punct.index.v** is a vector of the id attribute values of the puntuation marks in the sentence. Punctuation marks occurring between and word and its head must not be affect the value of the word's dependency distance. Thus, **setdiff(..., punc.index.v)** eliminates the indices of punctuation from the interval passed to it as its first argument.
+                + **length(...) - length(...)** takes the number of elements in the inclusive interval from head to target word and subtracts from it the number of elements in the reduced interval (i.e., the same inclusive interval with the indices of punctuatin marks excluded). The result of the subtraction is the number of punctuation marks in the interval.
+            + The nested **if (as.numeric(x["head"]) > as.numeric(x["id"])) {...}** command controls for whether the head precedes or follows the target word. Different calculations are needed for each.  
+                + The argument **as.numeric(x["head"]) > as.numeric(x["id"])** selects the cases in which the head follows the target word. The two terms are compared by the greater than operator.
+                    + **a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the subtrahend (the id attribute value of the target). The effect of this step is to increase the subtrahend by the number of punctuation marks in the relevant interval, thus decreasing the Dependecny Distance by the same number.
+                    + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+              + The **else {...}** command selects for cases in which the target word follows the head.
+                  + **a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"])** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the minuend (the head value; the term to be subtracted from). The effect of this step is to increase the value of the result by the number of punctiation marks in the interval.  Because the result of the subtraction here is always negative, increasing the value results in a smaller negative number (i.e., a number of smaller absolute value) by moving it toward 0. 
+                 + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+    + **return(node_DD.v)** passes the Dependency Distance of the target word to the matrix code.  
+    
+    

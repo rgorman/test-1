@@ -261,7 +261,7 @@ subtree_extraction <- function(x) {
     
     if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
       a <- subtree.l[[as.numeric(x["id"])]]
-      a <- paste0(a, sep="", collapse = " ")
+      a <- paste0(a, collapse = " ")
       
     } else {
       a <- NA
@@ -470,18 +470,18 @@ abs_DD_calculation <- function(x) { # A function to calculate DD for each eligib
   } else {
     
     
-    a <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])),
+    b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])),
                                                                                    punct.index.v))
     
     if (as.numeric(x["head"]) > as.numeric(x["id"])) { # Selects for a head node that follows the child node.
       
-      a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + a)  # Effectively moves child node (the subtrahend) closer in value to the head.
+      a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)  # Effectively moves child node (the subtrahend) closer in value to the head.
       node_DD.v <- append(node_DD.v, a) 
       
     } else { # Selects for a head node that precedes the child node.
       # p.holder.v <- (heads.v[k] + p.holder.v) - ids.v[k] # Effectively moves head node (the minuend) closer in value to the child.
       
-      a <- (as.numeric(x["head"]) + a) - as.numeric(x["id"]) # Effectively moves head node (the minuend) closer in value to the child.
+      a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"]) # Effectively moves head node (the minuend) closer in value to the child.
       
       
       node_DD.v <- append(node_DD.v, a)
