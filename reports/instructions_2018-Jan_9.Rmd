@@ -1920,4 +1920,57 @@ populate_word_element <- function(x) {
 
 ```
 
-            
+##### Note: in these comments open and closing angle brackets are omitted.
+
+* The purpose of this XSLT script is to: 
+    + extract input attribute values and give these values to new attributes with names that will be easier to distinguish in subsequent stages of the process 
+    + expand morphology annotation to an easily readable form
+    + add attributes representing the releavnt features of the syntactic ancestors of each word.
+    
+* **xsl:output method="xml" indent="yes"** sets the output of the XSLT to produce and XML file with  indentations according to hierarchical structure for clarity.
+
+* **xsl:template match="node() | @*"** introduces the identity transformation. This line uses wild card symbols as arguments to the **match=""** argument; the wild cards apply this template to the XML root, whatever thay may be. 
+    + **xsl:copy** performs a shallow copy. This term means that this command copies only the node refered to in the template **match** attribute; it does not copy attributes or child elements. Without further modification, this template would copy only the root element of the file.
+        + **xsl:apply-templates select="node() | @*"** identifies a set of attributes and nodes as specified in the command's **select** attribute. It then looks for templates whose **match** attribute refers to members of that set and applies the appropriate template. Here, the **select** attribute is set, using wild cards, to all nodes and all attributes. Because the **match** attribute for the identity transformation itself is in the set defined by **select**, the **xsl:copy** command in the identity transformation is applied recursively to all descendant nodes of the root and all attributes.
+        + **xsl:apply-templates** applies matched templates in such a way that the output is changed as directed and other input is passed on unchanged.
+
+* **xsl:template match="word[not(@lemma)]"** is a template to handle word elements lacking the **lemma** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **lemma** attribute will break a later stage of the code.
+    + **match="word[not(@lemma)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@lemma)]** means "where it is not the case that the attribute lemma exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="lemma"** creates for the word element a new attribute named **lemma**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+
+
+* **xsl:template match="word[not(@postag)]"** is a template to handle word elements lacking the **postag** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **postag** attribute will break a later stage of the code.
+    + **match="word[not(@postag)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@postag)]** means "where it is not the case that the attribute postag exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="postag"** creates for the word element a new attribute named **postag**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+     
+     
+     
+* **xsl:template match="word[not(@form)]"** is a template to handle word elements lacking the **form** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **form** attribute will break a later stage of the code.
+    + **match="word[not(@form)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@form)]** means "where it is not the case that the attribute form exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="form"** creates for the word element a new attribute named **form**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+
+
+ 
+ 
+* **xsl:template match="word"** is a template to create new attribute to serve as variables for author analysis. This template will apply to all word elements not specified in the preceding templates. The first step is to set up a series of variables to be used to create the desired attributes.
+    + **xsl:variable name="pos" select="substring(./@postag, 1, 1)"** creates a variable named **pos** and populates it with a letter indicating the part of speech of the current word element.
+        + **select="substring(./@postag, 1, 1)** assigns the value of the variable. The XQuery function **substring( )** returns the segment of a string indicated by its arguments.
+            + The first argument specifies the input string, here **./@postag** indicating the value of the **postag** attribute of the current word element. The second argument specifies the position of the string at which to begin extraction.  The third argument specifies the length of the string to be extracted. Thus, the arguments **1, 1** return the first character in the **postag** attribute, which is the symbol for part of speech.
+    + **xsl:variable name="person" select="substring(./@postag, 2, 1)"** creates a variable named **person** and populates it with a letter indicating the grammatical person of the current word element.
+    + **xsl:variable name="number" select="substring(./@postag, 3, 1)"** creates a variable named **number** and populates it with a letter indicating the grammatical number of the current word element.
+    + **xsl:variable name="tense" select="substring(./@postag, 4, 1)"** creates a variable named **tense** and populates it with a letter indicating the grammatical tense of the current word element.
+    + **xsl:variable name="mood" select="substring(./@postag, 5, 1)"** creates a variable named **mood** and populates it with a letter indicating the grammatical mood of the current word element.
+    + **xsl:variable name="voice" select="substring(./@postag, 6, 1)"** creates a variable named **mood** and populates it with a letter indicating the grammatical mood of the current word element.
+    + **xsl:variable name="gender" select="substring(./@postag, 7, 1)"** creates a variable named **gender** and populates it with a letter indicating the grammatical gender of the current word element.
+    + **xsl:variable name="case" select="substring(./@postag, 8, 1)"** creates a variable named **case** and populates it with a letter indicating the grammatical case of the current word element.
+    + **xsl:variable name="degree" select="substring(./@postag, 9, 1)"** creates a variable named **degree** and populates it with a letter indicating the grammatical degree of the current word element.
+    
+### Note that no single word has a value in all grammatical categories indicated by these variables.  However,  it is assumed to be more efficient to apply all categories to all words than to write separate code for each part of speech.  Inapplicable variables can be weeded out later in the process. 
+ 
+             
