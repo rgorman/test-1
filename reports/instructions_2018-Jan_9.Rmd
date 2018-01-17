@@ -1988,5 +1988,13 @@ populate_word_element <- function(x) {
           + **xsl:when test="&#36;pos='c'"** returns TRUE when the value of the **pos** variable is "**c**", the symbol for **conjuntion** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
           + **xsl:when test="&#36;pos='u'"** returns TRUE when the value of the **pos** variable is "**u**", the symbol for **punctuation** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
           + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the pos value is blank or otherwise abnormal in the input XML. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+          
+          
+           + The next **xsl:choose** element controls for the grammatical category of **number**.  
+         + **xsl:when test="&#36;number='s'"** returns TRUE when the value of the **number** variable is "**s**", the symbol for **singular** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;number='p'"** returns TRUE when the value of the **number** variable is "**p**", the symbol for **plural** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;number='d'"** returns TRUE when the value of the **number** variable is "**d**", the symbol for **dual** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
  
              
