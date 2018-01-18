@@ -1975,6 +1975,18 @@ populate_word_element <- function(x) {
  
  
  + **&lt;word&gt;** creates a word element to be populated be the nested code.
+ 
+ 
+       + **xsl:copy-of select="@\*"** replicates all attributes in the input node.
+       + **xsl:attribute name="self-relation** creates an attribute named "self-relation" to store the value of the **relation** attribute of the input node.
+           + **xsl:value-of select="./@relation"** returns the value of the expression specified in the **select** attribute. Here, **.** indicates the current node and **/@relation** indicates the attribute named "relation."
+       + **xsl:attribute name="self-depdist"** creates an attribute named "self-depdist" to store the dependency distance of the input node.
+           + **xsl:value-of select="./@DepDist"/** returns the value of the **DepDist** attribute of the input node.
+       + **xsl:attribute name="self-vertexDegree"** creates an attribute named "self-vertexDegree" to store the vertex degree of the input node.
+           + **xsl:value-of select="./@Degree"** returns the value of the **Degree** attribute of the input node.
+       
+       
+       
        + **xsl:choose** applies one or more condition tests as specified in nested nodes. The **choose** element in analogous to the **if ( ) {...}** command in R and similar languages.
            + **xsl:when test="&#36;pos='d'"** specifies a condition (there may be more than one condition) for the matrix **choose** element. The condition is specified through the value of the expression in the **test** attribute. Here, the test is set to **&#36;pos='d'**.  This **when** element returns TRUE when the value of the **pos** variable is "**d**", the symbol for **adverb** in the AGLDT (Ancient Greek and Latin Dependency Treebank).
              + **xsl:attribute name="self-morph-pos"** creates an attribute in the matrix word element with the name indicated in the **name** attribute. Here, the name is **self-morph-pos**. This kind of extended name was chosen to help disambiguate the new variables created in our study. For example, "self" makes it immediately clear that this value belongs to the target word and not to an ancestor or descendant. Likewise, "morph" makes it clear that, for example, "degree" is used in the morphological sense used in the comparision of adjectives and adverbs, not in the sense common in the study of graphs.
@@ -2018,3 +2030,28 @@ populate_word_element <- function(x) {
          
          
              
+               
+     + The next **xsl:choose** element controls for the grammatical category of **voice**. 
+         + **xsl:when test="&#36;voice='a'"** returns TRUE when the value of the **voice** variable is "**a**", the symbol for **active** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='p'"** returns TRUE when the value of the **voice** variable is "**p**", the symbol for **passive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='m'"** returns TRUE when the value of the **voice** variable is "**m**", the symbol for **middle** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='e'"** returns TRUE when the value of the **voice** variable is "**e**", the symbol for **deponent** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+         
+     + The next **xsl:choose** element controls for the grammatical category of **gender**. 
+         + **xsl:when test="&#36;gender='m'"** returns TRUE when the value of the **gender** variable is "**m**", the symbol for **masculine** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;gender='f'"** returns TRUE when the value of the **gender** variable is "**f**", the symbol for **feminine** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;gender='n'"** returns TRUE when the value of the **gender** variable is "**n**", the symbol for **neuter** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+     + The next **xsl:choose** element controls for the grammatical category of **case**.
+         + **xsl:when test="&#36;case='m'"** returns TRUE when the value of the **case** variable is "**n**", the symbol for **nominative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.         
+         + **xsl:when test="&#36;case='g'"** returns TRUE when the value of the **case** variable is "**g**", the symbol for **genitive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;case='d'"** returns TRUE when the value of the **case** variable is "**d**", the symbol for **dative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='a'"** returns TRUE when the value of the **case** variable is "**a**", the symbol for **accusative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='b'"** returns TRUE when the value of the **case** variable is "**b**", the symbol for **ablative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='v'"** returns TRUE when the value of the **case** variable is "**v**", the symbol for **vocative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+      
