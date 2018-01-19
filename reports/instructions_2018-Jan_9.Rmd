@@ -2054,11 +2054,28 @@ populate_word_element <- function(x) {
          + **xsl:when test="&#36;case='v'"** returns TRUE when the value of the **case** variable is "**v**", the symbol for **vocative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
          + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
          
-   + The next **xsl:choose** element controls for the grammatical category of **degree**. 
+    + The next **xsl:choose** element controls for the grammatical category of **degree**. 
          + **xsl:when test="&#36;degree='p'"** returns TRUE when the value of the **degree** variable is "**p**", the symbol for **positive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
          + **xsl:when test="&#36;degree='c'"** returns TRUE when the value of the **degree** variable is "**c**", the symbol for **comparative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
          + **xsl:when test="&#36;degree='s'"** returns TRUE when the value of the **degree** variable is "**s**", the symbol for **superlative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
          + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
          
-         
+
+#### Notes on attributes derived from parent of input node. 
+
+* The first step is to set a variable to identify the parent of the current node.
+     + The parent is found via the "head" attribute.
+         + **xsl:variable name="parent_id" select="./@head"** creates a variable named "parent_id" and gives it the value specified in the **select** attribute, namely the value of the **head** attribute of the current node.
+         + **xsl:variable name="parent-pos" select="substring(../word[@id = &#36;parent_id]/@postag, 1, 1)"** creates a variable with the part of speech symbol of the parent of the current node. The variable is named "parent-pos".
+             + The first argument of the **substring( )** function is an XPath expression which specifies the syntactic parent (not the XML parent) of the input word: 
+                 + in XPath, the **dot dot** indicates the parent XML node of the input node. Here, the parent is the sentence node in which the input word is nested. 
+                 + The next part of the XPath expression (parts are separated by the **/** symbol) is **word[@id = &#36;parent_id]**, which, through the **[...]** operator, specifies a particular word in the current sentence, namely that word whose **id** attribute has the value matching the **parent_id** variable. Recall that this varible gets its value from the **head** attribute of the input word. Thus, it identifies the syntactic parent of the input word.
+                 + **@postag**, the final part of the XPath expression, selects the **postag** attribute of the node indicated by the expression.
+    + Note that the other morphological variables for the syntactic parents are generated analogously to the "self-" variables detailed above. However, there are some important additions to the code.  
+        + The **xsl:choose** element differentiates treatment according to whether the **head** attribute of the input word is equal to or greater than 0.
+            + **xsl:when test="&#36;parent_id = 0"** identifies the **ROOT** of the sentence. Conventionally, the highest node in a dependency tree is considered the root, and, paradoxically, is depicted as depending on a sentence-external root. Thus, if the **head** attribute is 0, the only relevant feature applicable to its syntactic parent is the designation of its **relation** attribute as "root".
+               + **xsl:attribute name="parent-relation"** creates the attribute **parent-relation** and the nested text string adds the value "root".
+               + All other **parent-** attributes are given the value "null" to indicate that the parent node essentially does not exist.
+           + **xsl:when test="&#36;parent_id > 0"** selects all nodes in the sentence which are not the sentence root. The nested code parallels that for the **self-** attributes and needs no detailed discussion.
+               
           
