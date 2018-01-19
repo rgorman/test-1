@@ -2077,5 +2077,21 @@ populate_word_element <- function(x) {
                + **xsl:attribute name="parent-relation"** creates the attribute **parent-relation** and the nested text string adds the value "root".
                + All other **parent-** attributes are given the value "null" to indicate that the parent node essentially does not exist.
            + **xsl:when test="&#36;parent_id > 0"** selects all nodes in the sentence which are not the sentence root. The nested code parallels that for the **self-** attributes and needs no detailed discussion.
-               
+     
+        
+#### Notes on attributes derived from syntactic grandparent of input node. 
+
+
+* The first step is to set a variable to identify the parent of the current node.
+     + The parent is found via the "head" attribute.
+         + **xsl:variable name="g1-parent_id"select="parent::sentence/word[@id = &#36;parent_id]/@head"** creates a variable named **g1-parent_id** whose value is produced from the evaluation of the expression in the **select** attriute. Here, the value represents the value of the **head** attribute of the syntactic parent token of the input token. In other words, the value is the **id** attribute of the syntactic grandparent.
+             + **parent::sentence**, the first element of the XPath expression, is a so-called "axis" denotation of the parent of the input node, here the matrix sentence.
+             + **word[@id = &#36;parent_id]**, the second element of the XPath expression, selects the node which is the syntactic parent of the input word.
+             + **@head"**, the last element in the XPath expression, selects the **head** attribute of the syntactic parent. 
+     + This variable is used to extract the relevant values from the syntactic grandparent. The values are stored in **g1-parent-** attributes. The process is analogous to that creating the **self-** attributes and will not be discussed in detail. However, there are some important additions to the code. 
+         + The **xsl:choose** element differentiates treatment according to whether the **head** attribute of the input word is equal to or greater than 0, or neither.
+             + **xsl:when test="&#36;g1-parent_id = 0"** selects a syntactic grandparent of the input word which is the root node of the sentence and assigns appropriate values. These values are the same as discussed above under the **parent-** attributes.
+             + **xsl:when test="&#36;g1-parent_id > 0"** selects a syntactic grandparent which is a dependent word. The nested code creates **g1-parent-** variables and assigns the appropriate values.
+             + **xsl:otherwise** catches those cases for which a synctactic grandparent does not exist.  This step is first necessary for syntactic grandparents and more distance ancestors. All words in a sentence have syntactic parents except the sentence root, for which a fictitious parent is conventionally supplied. In contrast, many words do not have syntactic grandparents.
+                   
           
