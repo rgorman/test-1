@@ -2094,4 +2094,12 @@ populate_word_element <- function(x) {
              + **xsl:when test="&#36;g1-parent_id > 0"** selects a syntactic grandparent which is a dependent word. The nested code creates **g1-parent-** variables and assigns the appropriate values.
              + **xsl:otherwise** catches those cases for which a synctactic grandparent does not exist.  This step is first necessary for syntactic grandparents and more distance ancestors. All words in a sentence have syntactic parents except the sentence root, for which a fictitious parent is conventionally supplied. In contrast, many words do not have syntactic grandparents.
                    
+
+#### Notes on attributes derived from syntactic great-grandparent of input node and beyond
+
+* Features from syntactic great-grandparent and more distant ancestors are treated somewhat differently. In particular, **part of speech is the only morphological feature extracted from ancestors of this distance.** The goal of a later stage of the analysis is to use all combinations of variables to characterize texts. With 12 variables per generation, the number of possible combinations quickly outstrips computing resources. Thus, limiting variables is necessary, and the most reasonable place to cut variables is in the distant syntactic ancestors  since variables extracted from these levels most often have values of "null" or "NA".
+    + The only variables extracted for these distant syntactic are from the following attributes: **relation,** **DepDist,** **Degree,** and **postag** (part of speech only).
+    + Even these limited variables are only applicable when the **head** attribute of the target ancestor is greater than 0.
+    
+    
           
