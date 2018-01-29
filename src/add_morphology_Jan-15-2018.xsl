@@ -159,22 +159,25 @@
                 <xsl:when test="$mood='p'">
                     <xsl:attribute name="self-morph-mood">participle</xsl:attribute>
                 </xsl:when>
+                <xsl:when test="$mood='m'">
+                    <xsl:attribute name="self-morph-mood">imperative</xsl:attribute>
+                </xsl:when>
                 <xsl:otherwise>
                     <xsl:attribute name="self-morph-mood">NA</xsl:attribute>
                 </xsl:otherwise>
             </xsl:choose>
             
             <xsl:choose>
-                <xsl:when test="voice='a'">
+                <xsl:when test="$voice='a'">
                     <xsl:attribute name="self-morph-voice">active</xsl:attribute>
                 </xsl:when>
-                <xsl:when test="voice='p'">
+                <xsl:when test="$voice='p'">
                     <xsl:attribute name="self-morph-voice">passive</xsl:attribute>
                 </xsl:when>
-                <xsl:when test="voice='m'">
+                <xsl:when test="$voice='m'">
                     <xsl:attribute name="self-morph-voice">middle</xsl:attribute>
                 </xsl:when>
-                <xsl:when test="voice='e'">
+                <xsl:when test="$voice='e'">
                     <xsl:attribute name="self-morph-voice">deponent</xsl:attribute>
                 </xsl:when>
                 <xsl:otherwise>
@@ -251,21 +254,21 @@
             <xsl:choose>
                 <xsl:when test="$parent_id = 0">
                     <xsl:attribute name="parent-relation">root</xsl:attribute>
-                    <xsl:attribute name="parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="parent-vertexDegree">null</xsl:attribute>
+                    <xsl:attribute name="parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-vertexDegree">NULL</xsl:attribute>
                     
                     
                     
                     
-                    <xsl:attribute name="parent-morph-pos">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-person">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-number">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-tense">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-mood">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-voice">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-gender">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-case">null</xsl:attribute>
-                    <xsl:attribute name="parent-morph-degree">null</xsl:attribute>
+                    <xsl:attribute name="parent-morph-pos">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-person">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-number">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-tense">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-mood">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-voice">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-gender">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-case">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-degree">NULL</xsl:attribute>
                     
                 </xsl:when>
                 <xsl:when test="$parent_id > 0">
@@ -380,6 +383,9 @@
                         <xsl:when test="$parent-mood='p'">
                             <xsl:attribute name="parent-morph-mood">participle</xsl:attribute>
                         </xsl:when>
+                        <xsl:when test="$parent-mood='m'">
+                            <xsl:attribute name="parent-morph-mood">imperative</xsl:attribute>
+                        </xsl:when>
                         <xsl:otherwise>
                             <xsl:attribute name="parent-morph-mood">NA</xsl:attribute>
                         </xsl:otherwise>
@@ -485,8 +491,8 @@
              <xsl:choose>
                  <xsl:when test="$g1-parent_id = 0">
                      <xsl:attribute name="g1-parent-relation">root</xsl:attribute>
-                     <xsl:attribute name="g1-parent-depdist">null</xsl:attribute>
-                     <xsl:attribute name="g1-parent-vertexDegree">null</xsl:attribute>
+                     <xsl:attribute name="g1-parent-depdist">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-vertexDegree">NULL</xsl:attribute>
                      
                                           
                      <xsl:attribute name="g1-parent-morph-pos">NULL</xsl:attribute>
@@ -621,6 +627,9 @@
                          <xsl:when test="$g1-parent-mood='p'">
                              <xsl:attribute name="g1-parent-morph-mood">participle</xsl:attribute>
                          </xsl:when>
+                         <xsl:when test="$g1-parent-mood='m'">
+                             <xsl:attribute name="parent-morph-mood">imperative</xsl:attribute>
+                         </xsl:when>
                          <xsl:otherwise>
                              <xsl:attribute name="g1-parent-morph-mood">NA</xsl:attribute>
                          </xsl:otherwise>
@@ -702,9 +711,9 @@
                      
                  </xsl:when>
                  <xsl:otherwise>
-                     <xsl:attribute name="g1-parent-relation">null</xsl:attribute>
-                     <xsl:attribute name="g1-parent-depdist">null</xsl:attribute>
-                     <xsl:attribute name="g1-parent-vertexDegree">null</xsl:attribute>
+                     <xsl:attribute name="g1-parent-relation">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-depdist">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-vertexDegree">NULL</xsl:attribute>
                      
                                           
                      <xsl:attribute name="g1-parent-morph-pos">NULL</xsl:attribute>
@@ -738,9 +747,9 @@
             <xsl:choose>
                 <xsl:when test="$g2-parent_id = 0">
                     <xsl:attribute name="g2-parent-relation">root</xsl:attribute>
-                    <xsl:attribute name="g2-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g2-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g2-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g2-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:when>
                 <xsl:when test="$g2-parent_id > 0">
                     <xsl:attribute name="g2-parent-relation"><xsl:value-of select="../word[@id = $g2-parent_id]/@relation"/></xsl:attribute>
@@ -785,10 +794,10 @@
                     
                 </xsl:when>
                 <xsl:otherwise>
-                    <xsl:attribute name="g2-parent-relation">null</xsl:attribute>
-                    <xsl:attribute name="g2-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g2-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g2-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g2-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:otherwise>
             </xsl:choose>
             
@@ -803,9 +812,9 @@
             <xsl:choose>
                 <xsl:when test="$g3-parent_id = 0">
                     <xsl:attribute name="g3-parent-relation">root</xsl:attribute>
-                    <xsl:attribute name="g3-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g3-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g3-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g3-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:when>
                 <xsl:when test="$g3-parent_id > 0">
                     <xsl:attribute name="g3-parent-relation"><xsl:value-of select="../word[@id = $g3-parent_id]/@relation"/></xsl:attribute>
@@ -849,10 +858,10 @@
                     
                 </xsl:when>
                 <xsl:otherwise>
-                    <xsl:attribute name="g3-parent-relation">null</xsl:attribute>
-                    <xsl:attribute name="g3-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g3-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g3-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g3-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:otherwise>
             </xsl:choose>
             
@@ -865,9 +874,9 @@
             <xsl:choose>
                 <xsl:when test="$g4-parent_id = 0">
                     <xsl:attribute name="g4-parent-relation">root</xsl:attribute>
-                    <xsl:attribute name="g4-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g4-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g4-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g4-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:when>
                 <xsl:when test="$g4-parent_id > 0">
                     <xsl:attribute name="g4-parent-relation"><xsl:value-of select="../word[@id = $g4-parent_id]/@relation"/></xsl:attribute>
@@ -910,10 +919,10 @@
                     
                 </xsl:when>
                 <xsl:otherwise>
-                    <xsl:attribute name="g4-parent-relation">null</xsl:attribute>
-                    <xsl:attribute name="g4-parent-depdist">null</xsl:attribute>
-                    <xsl:attribute name="g4-parent-vertexDegree">null</xsl:attribute>
-                    <xsl:attribute name="g4-parent-morph-pos">null</xsl:attribute>
+                    <xsl:attribute name="g4-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-morph-pos">NULL</xsl:attribute>
                 </xsl:otherwise>
             </xsl:choose>
             
