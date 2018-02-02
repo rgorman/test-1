@@ -45,7 +45,7 @@ for (i in seq_along(files.v)) {
       
     }
     
-  }
+  } # end of j loop
   
   colnames(base.df) <- var_names.v
   
@@ -67,7 +67,7 @@ for (i in seq_along(files.v)) {
     new_vars.m <- cbind(new_vars.m, combined_var)
     
     nomina <- append(nomina, paste0(var_atoms, collapse = "_&_"))
-  }
+  } # end of loop k
   
   
   new_vars.m <- new_vars.m[, -1]
