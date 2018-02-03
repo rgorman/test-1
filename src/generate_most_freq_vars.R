@@ -1,4 +1,4 @@
-## This script generates a limited set of new varialbes for each file in the input directory.
+## This script generates a limited set of new variables for each file in the input directory.
 
 library(XML)
 library(tidyverse)
