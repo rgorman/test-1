@@ -10,11 +10,11 @@ files.v <- dir(path=input.dir, pattern=".*xml")
 
 
 
-generate_vars <- function(x) {
-  a <- unlist(x)
-  b <- base.df[, a]
+generate_vars <- function(var.list, df) {
+  a <- unlist(var.list)
+  b <- df[, a]
   if (length(a) > 1) {
-    c <- apply(b, 1, paste0, collapse = "-")
+    c <- apply(b, 1, paste0, collapse = "/")
   } else {
     c <- b 
   }
@@ -22,22 +22,42 @@ generate_vars <- function(x) {
 }
 
 
-generate_var_names <- function(x) {
-  a <- unlist(x)
+generate_var_names <- function(var.list) {
+  a <- unlist(var.list)
   b <- paste0(a, collapse = "_&_")
-  c <- NULL
-  c <- append(c, b)
-  return(c)
+  return(b)
 }
+
+
+
+
+doc.object <- xmlTreeParse(file.path(input.dir, files.v[1]), useInternalNodes=TRUE)
+
+
+word.nodes <- getNodeSet(doc.object, "//word")
+
+
+word.list <- xmlApply(word.nodes, xmlToList)
+
+
+var_names.v <- map(word.list, names) %>%
+  unlist() %>%
+  unique()
+
+
+var_names.v <- var_names.v[-which(var_names.v == "insertion_id" | var_names.v == "artificial") ]
+
+
+var_names.v <- var_names.v[12:length(var_names.v)] # drop non-expanded attributes as variables
+
 
 holder.tib <- tibble(variable_name="blank")
 
-# seq_along(files.v)
 
-for(i in 1:4) {
+for(i in seq_along(files.v)) {
   
   # read xml structure from file to .R object
-  doc.object <- xmlTreeParse(file.path(input.dir, files.v[1]), useInternalNodes=TRUE)
+  doc.object <- xmlTreeParse(file.path(input.dir, files.v[i]), useInternalNodes=TRUE)
   
   # extract all <word> elements and children into XmlNodeList object
   word.nodes <- getNodeSet(doc.object, "//word")
@@ -45,21 +65,7 @@ for(i in 1:4) {
   
   word.list <- xmlApply(word.nodes, xmlToList)
   
-  
-  
-  
-  var_names.v <- map(word.list, names) %>%
-    unlist() %>%
-    unique()
-  
-  var_names.v <- var_names.v[-which(var_names.v == "insertion_id" | var_names.v == "artificial") ]
-  
-  
-
-  
-  var_names.v <- var_names.v[12:length(var_names.v)] # drop non-expanded attributes as variables
-  
-  
+ 
   for (j in seq_along(var_names.v)) {
     
     if ( j == 1) {
@@ -100,10 +106,10 @@ for(i in 1:4) {
   new_vars.m <- matrix(nrow = nrow(base.df), ncol = 1)
   
   
-  for (m in 1:2) {
+  for (m in seq_along(selected_vars.list)) {
     
-    start_time <- Sys.time()
-    a <- sapply(selected_vars.list[[m]], generate_vars)
+ 
+    a <- sapply(selected_vars.list[[m]], generate_vars, df = base.df)
     
     nomina <- sapply(selected_vars.list[[m]], generate_var_names)
     
@@ -113,10 +119,7 @@ for(i in 1:4) {
     
     end_time <- Sys.time()
     
-    print(paste("loop", m))
-    print(end_time - start_time)
-    
-    
+   
   }
   
   new_vars.m <- new_vars.m[, -1]

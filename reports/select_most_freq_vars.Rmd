@@ -1,0 +1,212 @@
+---
+title: "Selection of most frequent combined variables"
+output: html_notebook
+---
+
+## Script to select most frequent combined variables
+
+```{r}
+## This script is used to select combined variables for further consideration.
+
+require(XML)
+require(tidyverse)
+require(stringr)
+
+input.dir <- "./output_2"
+
+files.v <- dir(path=input.dir, pattern=".*xml")
+
+
+
+generate_vars <- function(var.list, df) {
+  a <- unlist(var.list)
+  b <- df[, a]
+  if (length(a) > 1) {
+    c <- apply(b, 1, paste0, collapse = "/")
+  } else {
+    c <- b 
+  }
+  return(c)
+}
+
+
+generate_var_names <- function(var.list) {
+  a <- unlist(var.list)
+  b <- paste0(a, collapse = "_&_")
+  return(b)
+}
+
+
+```
+
+
+
+#### This script generates combined variables and allows for the calculation of the frequency with which a particular variable type has values or is unused.
+
+* **require(XML), require(tidyverse),** and **require(stringr)** load the packages necessary for the script.
+* **input.dir <- "./output_2"** creates a character vector containing the directory holding the target XML files.
+* **files.v <- dir(path=input.dir, pattern=".&#42;xml")** creates a character vector containing the names of the XML files in the specified directory. 
+* **generate_vars <- function(var.list, df) { ... }** creates a user-defined function to be applied with **sapply( )** to generate new combined variables.
+  + The function takes two arguments. The first is a list object containing nested lists of the the names of the simplex variables to be combined. This list will be generated later in this script. Second, a data frame object with a value for each simplex variable for each token in the input file. This data frame too will be generated later in the srcript.
+  + **a <- unlist(var.list)** creates a character vector with the names of the simplex variable(s) from the input nested list.
+  + **b <- df[, a]** creates a data frame object by selecting those columns in the input data frame with the names contained in the character vector **a**.
+  + **if (length(a) > 1) { ... }** selects for instances of the character vector **a** which contain more than one variable name. Such instances must be treated differently than simplex variables.
+    + **c <- apply(b, 1, paste0, collapse = "/")** creates a matrix with a row for each input row (one for each token in input file) and a column for the new combined variable.
+      + **apply( )** applies the specified function to each row or column of the input. The first argument is the input object and the second argument, **1**, indicates a row-by-row treatment. The function to be applied is **paste0(x, collapse = "/")**. This function joins the input (two or more variable values) into a single character string joined by a forward slash character.
+  + **else { ... }** selects intances in which **a** contains only one element. Such instances represent simplex variables.
+    + **c <- b** passes the column of simplex variables to the output variable
+  + **return(c)** passes the output variable to the matrix code.  
+ 
+ 
+ 
+  
+```{r}
+
+
+
+doc.object <- xmlTreeParse(file.path(input.dir, files.v[1]), useInternalNodes=TRUE)
+
+
+word.nodes <- getNodeSet(doc.object, "//word")
+
+
+word.list <- xmlApply(word.nodes, xmlToList)
+
+
+var_names.v <- map(word.list, names) %>%
+  unlist() %>%
+  unique()
+
+
+var_names.v <- var_names.v[-which(var_names.v == "insertion_id" | var_names.v == "artificial") ]
+
+
+var_names.v <- var_names.v[12:length(var_names.v)] # drop non-expanded attributes as variables
+
+
+
+```
+
+
+#### The next step is to generate a list of simplex variable names to be used in making the combined variables
+
+* **doc.object <- xmlTreeParse(file.path(input.dir, files.v[1]), useInternalNodes=TRUE)** creates an object containing a representation of the xml structure of the input file.  Here the first file in the input directory is specified (** files.v[1]**). All files in the directory should have the same set of attributes to be used for variables.
+* **word.nodes <- getNodeSet(doc.object, "//word")** creates a xmlNodeSet object containing all word nodes from the input. 
+* **word.list <- xmlApply(word.nodes, xmlToList)** creates an R list object containing the data from each word node. The data are more easily manipulated in this format.
+* **var_names.v <-** creates a character vector containing the output of the associated code.
+  + **map(word.list, names)** applies the function **names( )** to each element in **word.list**. The result is a large list object (number of list elements = words in word.list). Each list element contains a character vector of attribute names.
+  + **%>% unlist()** converts the input to a large character vector.
+  + **%>%  unique()** removes redundant elements and returns unique names.
+* **var_names.v <- var_names.v[-which(var_names.v == "insertion_id" | var_names.v == "artificial") ]** removes attributes specific to ellipsis nodes from the vector. The values of the deleted attributes have no relevance in syntactic analysis.
+* **var_names.v <- var_names.v[12:length(var_names.v)]** limits the vector contents to only those attributes that have been given easily interpretable names. The attributes eliminated are those created by the original dependency annotation. Their values have been included in the retained elements.
+
+
+```{r}
+
+
+
+
+holder.tib <- tibble(variable_name="blank")
+
+
+for(i in seq_along(files.v)) {
+  
+  # read xml structure from file to .R object
+  doc.object <- xmlTreeParse(file.path(input.dir, files.v[i]), useInternalNodes=TRUE)
+  
+  # extract all <word> elements and children into XmlNodeList object
+  word.nodes <- getNodeSet(doc.object, "//word")
+  
+  
+  word.list <- xmlApply(word.nodes, xmlToList)
+  
+ 
+  for (j in seq_along(var_names.v)) {
+    
+    if ( j == 1) {
+      
+      base.df <- word.list %>% map_chr(var_names.v[j]) %>%
+        data.frame(check.names = FALSE, stringsAsFactors = FALSE)
+      
+    } else {
+      
+      base.df <- word.list %>% map_chr(var_names.v[j]) %>%
+        cbind(base.df,  ., stringsAsFactors = FALSE)
+      
+    }
+    
+  } # end of j loop
+  
+  colnames(base.df) <- var_names.v
+  
+  
+  
+ 
+  
+  
+  selected_vars.list <- list() # make empty list object to store result of loop
+  nomina.v <- NULL # make empty vector to store names
+  
+  
+  for (k in 1:3) { 
+    selected_vars.list[[k]] <- combn(var_names.v, k, simplify = FALSE) # make all possible combinations of variables
+    nomina.v <- paste(length(var_names.v), "Choose",  k, collapse = " ") %>% # create names for elements in list
+      append(nomina.v, .)
+  }
+  
+  names(selected_vars.list) <- nomina.v  # assign names to list elements
+  
+ 
+  
+  new_vars.m <- matrix(nrow = nrow(base.df), ncol = 1)
+  
+  
+  for (m in seq_along(selected_vars.list)) {
+    
+ 
+    a <- sapply(selected_vars.list[[m]], generate_vars, df = base.df)
+    
+    nomina <- sapply(selected_vars.list[[m]], generate_var_names)
+    
+    colnames(a) <- nomina
+    
+    new_vars.m <- cbind(new_vars.m, a)
+    
+    end_time <- Sys.time()
+    
+   
+  }
+  
+  new_vars.m <- new_vars.m[, -1]
+  
+  
+  new_vars.m[str_detect(new_vars.m, "NA")] <- NA # add logical NA to cells
+  
+  
+  new_vars.m[str_detect(new_vars.m, "NULL")] <- NA # add logical NA to cells
+  
+  new_vars.m <-tolower(new_vars.m)
+  
+  vars.tib <- as_tibble(new_vars.m)
+  
+  
+  file_var_ct.tib <-   gather(vars.tib, variable_name, variable_value, na.rm = TRUE) %>%
+    group_by(variable_name) %>%
+    summarize(n())
+  
+ 
+  
+  holder.tib <- bind_rows(holder.tib, file_var_ct.tib)
+  
+  
+}
+
+
+```
+
+#### The next step is a set of nested loops to generate new variables and their values
+
+
+* **holder.tib <- tibble(variable_name="blank")** creates a tibble object to contain the results of the loop series. The result is a tibble (a kind of data frame) with one column, called **variable_name**, with one row. The content of the single data cell is the string "blank".
+* **for(i in seq_along(files.v)) { ... }** is the main loop, which iterates through the files in the **files.v** vector.
+
