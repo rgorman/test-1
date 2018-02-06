@@ -244,6 +244,11 @@ for(i in seq_along(files.v)) {
   + **new_vars.m <-tolower(new_vars.m)** converts all variables values and variable names to lower case character strings. This step is necessary to avoid mis-identification of variables and values.
   + **vars.tib <- as_tibble(new_vars.m)** converts the matrix to a tibble object. This step allows use of convenient functions.
   + **file_var_ct.tib <-** creates a new tibble containing a row for each variable type and two columns, one containing the names of the variable types, the other the count of the number of times that particular variable type has a significant value. This tibble is populated by the associated code:
-    + **gather(vars.tib, variable_name, variable_value, na.rm = TRUE)** 
+    + **gather(vars.tib, variable_name, variable_value, na.rm = TRUE)** creates a tibble with the number of rows equal to the number of cells in the input, **vars.tib**, with significant (non-NA) values. There are two columns, one containing the variable name and the other the variable value.
+    + **%>% group_by(variable_name)** pipes the results of the previous code to the **group_by( )** function and returns a tibble in which rows are grouped by contents of the column **variable_name**.
+    + **%>% summarize(n())** pipes the results of the previous code to the **summarize( )** function, which summarizes multiple values to a single value. In other words, it returns a tibble of one row for each unique variable name. The function **n( )** counts the intances of each variable of a given name and returns this value in a second column.
+  + **holder.tib <- bind_rows(holder.tib, file_var_ct.tib)** adds the tibble of variable names and counts to the storage tibble created before the rinning of this loop. The function **bind_rows( )** adds, row by row, the second input argument to the first.
+* This is the end of the main loop.  The next step is to generate a single aggregated contingency table for the data from all xml input files.  
+
 
   
