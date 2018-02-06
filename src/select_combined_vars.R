@@ -117,9 +117,7 @@ for(i in seq_along(files.v)) {
     
     new_vars.m <- cbind(new_vars.m, a)
     
-    end_time <- Sys.time()
     
-   
   }
   
   new_vars.m <- new_vars.m[, -1]
