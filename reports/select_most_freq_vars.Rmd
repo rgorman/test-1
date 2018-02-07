@@ -251,4 +251,49 @@ for(i in seq_along(files.v)) {
 * This is the end of the main loop.  The next step is to generate a single aggregated contingency table for the data from all xml input files.  
 
 
+```{r}
+
+
+
+agg_var_ct.tib  <- xtabs(`n()` ~ variable_name, data = holder.tib) %>%
+  as_tibble() # combine all frequencies in holder.tib to in one table
+
+
+agg_var_ct.tib$n %>%
+  quantile(., probs = (seq(0.9, 1, 0.005)))
+
+shorter_var.tib <- agg_var_ct.tib %>% 
+  filter(n >= 52960) %>% # select value that will give reasonable number of variables
+  arrange(desc(n))
+
+
+keepers.v <- NULL
+
+keepers.v <- append(keepers.v,   apply(shorter_var.tib[,1], 1, `[`))
+
+reduced_atomic_vars.list <- sapply(keepers.v, strsplit, split = "_&_")
+
+saveRDS(reduced_atomic_vars.list, file = "reduced_var_list.rds")
+
+```
+
+
+### The final step is to aggregate results from each file in a single frequency table and cull and save results.
+
+* **agg_var_ct.tib  <-** creates tibble object to hold results of associated code. The content is a contingency table with variable names and frequencies for all xml files aggregated as a whole.
+  + **xtabs(\`n()\` ~ variable_name, data = holder.tib)** creates the contingency table using the forumula given by the first argument. On the left hand of the tilde is the column with counts, on the right side, the variable(s) to cross classify against the counts. 
+  + **%>% as_tibble()** converts the piped input to a tibble object.
+* **agg_var_ct.tib&#36;n %>%** selects the column of the named tibble holding the frequency counts and pipes them as input to the next function.  
+  + **quantile(., probs = (seq(0.9, 1, 0.005)))** returns for the frequencies input the quantiles between 90% and 100% in 0.5% increments. These numbers are used to select a reasonable number of variables to use for classification. Selecting from the most frequent 10% of variables make sense, since there will be fewer empty values.
+* **shorter_var.tib <- agg_var_ct.tib** creates a tibble of the selected variables, based on the associated code.
+  + **%>% filter(n >= 52960)** selects those rows of the piped input which meet the criterion specified. Here, the selection is for those rows whose n column contains a nunmber equal to or greater than the figure indicated.
+  + **%>% arrange(desc(n))** pipes the results of the previous line to the **arrange( )** function, which orders the rows. The **desc(n)** function used as an argument for **arrange( )** indicates an order from highest to lowest values in column n.
+* **keepers.v <- NULL** creates an empty vector for the **append( )** function.
+* **keepers.v <- append(keepers.v,   apply(shorter_var.tib[,1], 1, \`[\`))** populates the vector with the name of the varialbes to be kept.
+  + **apply(shorter_var.tib[,1], 1, \`[\`)** applies the **[** function to each row of the first column of the input tibble. This function returns the value of the cell in question (here the name of the variable).
+* **reduced_atomic_vars.list <- sapply(keepers.v, strsplit, split = "_&_")** creates a list object containing a character vector of one or more elements for each variable name in **keepers.v**. Each element is the name of a simplex variable from which combined variables may be created.
+* **saveRDS(reduced_atomic_vars.list, file = "reduced_var_list.rds")** saves the results to disk for later use.
+  
+
+
   

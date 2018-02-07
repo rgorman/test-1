@@ -163,7 +163,7 @@ keepers.v <- append(keepers.v,   apply(shorter_var.tib[,1], 1, `[`))
 
 reduced_atomic_vars.list <- sapply(keepers.v, strsplit, split = "_&_")
 
-saveRDS(reduced_atomic_vars.list, file = "test_var_list.rds")
+saveRDS(reduced_atomic_vars.list, file = "reduced_var_list.rds")
 
 ##############
 
