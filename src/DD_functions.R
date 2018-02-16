@@ -289,7 +289,9 @@ populate_word_element <- function(x) {
                               Subtree = node.list$Subtree[y],
                               DepDist = node.list$DepDist[y],
                               Neighborhood = node.list$Neighborhood[y],
-                              Degree = node.list$Degree[y])
+                              Degree = node.list$Degree[y],
+                              Parent_Order = node.list$parent_order[y],
+                              Has_Sib = node.list$has_sib[y])
     
   } else {
     
@@ -299,11 +301,67 @@ populate_word_element <- function(x) {
                               Subtree = node.list$Subtree[y],
                               DepDist = node.list$DepDist[y],
                               Neighborhood = node.list$Neighborhood[y],
-                              Degree = node.list$Degree[y])
+                              Degree = node.list$Degree[y],
+                              Parent_Order = node.list$parent_order[y],
+                              Has_Sib = node.list$has_sib[y])
     
   }
   
   return(word.xml)
+}
+
+
+
+get_node_type <- function(x) {
+  node <- strsplit(x, split = " ") %>%
+    unlist() %>%
+    length() %>%
+    is_greater_than(1)
+  
+  if(node == TRUE) {
+    return("internal")
+  } else {
+    return("leaf")
+  }
+  
+}
+
+
+
+
+get_parent_order <- function(sentence) {
+  id <- sentence["id"] %>%
+    as.numeric()
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  if (head == 0) {
+    return("NA")
+  } else {
+    if (is_less_than(head, id)) {
+      return("before")
+    } else {
+      return("after")
+    }
+  }
+  
+}
+
+
+
+
+check_for_siblings <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  has_sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+    unlist() %>%
+    as.numeric() %>%
+    length() %>%
+    is_greater_than(2)
+  
+  return(has_sibs)
 }
 
 

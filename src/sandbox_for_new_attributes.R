@@ -47,7 +47,7 @@ for (i in seq_along(files.v)) {
     node.list <- vector("list", 9)
     names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree", 
                           "DepDist", "Neighborhood", "Degree", "Node_Type",
-                          "parent_order", "sibling_order")
+                          "parent_order", "has_sib")
     
     
     node.list$Ellipsis <- sapply(sent_working, ellipsis_identification) # logical vector with TRUE for each ellipsis node in target sentence
@@ -82,7 +82,7 @@ for (i in seq_along(files.v)) {
     
     node.list$parent_order <- sapply(sent_working, get_parent_order)
     
-    node.list$sibling_order <- sapply(sent_working, get_sibling_order, siblings = node.list$Neighborhood)
+    node.list$has_sib <- sapply(sent_working, check_for_siblings)
     
     
     
@@ -128,7 +128,7 @@ for (i in seq_along(files.v)) {
   
 } # end of loop i
 
-subtree.xml[[2]]
+subtree.xml[[3]]
 
 
 get_node_type <- function(x) {
@@ -145,7 +145,7 @@ get_node_type <- function(x) {
   
 }
 
-sapply(node.list$Neighborhood, get_node_type)
+
 
 
 get_parent_order <- function(sentence) {
@@ -166,7 +166,27 @@ get_parent_order <- function(sentence) {
   
 }
 
-sapply(sent_working, get_parent_order)  
+ 
+
+
+check_for_siblings <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  has_sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+    unlist() %>%
+    as.numeric() %>%
+    length() %>%
+    is_greater_than(2)
+  
+  return(has_sibs)
+}
+
+node.list$Neighborhood[17]
+sapply(sent_working, check_for_siblings)
+
+sent_working[[17]]
 
 get_sibling_order <- function(sentence, siblings) {
   id <- sentence["id"] %>%
