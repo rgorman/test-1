@@ -1,4 +1,43 @@
 
+extract_words <- function(x) { #  function to extract data from each word element in sentence. 
+  
+  words.v <-  unlist(x)
+  return  (words.v)
+}
+
+find_punct_index <- function(x) { # A function to return id values of each punctuation mark in sentence.
+  word.v <- NULL
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  # word.v <- append(word.v, substr(x["postag"], 1, 1) == "u") # If part of speech is "punctuation", mark TRUE.
+  
+  
+  if (TRUE %in% word.v) { 
+    return(as.numeric(x["id"]))
+  }
+  
+}
+
+
+
+extract_edge_graph <- function(sentence) {
+  a <- find_heads(sentence)
+  b <- find_ids(sentence)
+  m <- matrix(a, ncol = 1)
+  m <- cbind(m, b)
+  index <- which(m[, 1] > 0)
+  m <- m[index, ]
+  if (length(m) == 2) {
+    m <- matrix(m, nrow = 1)
+  }
+  g <- graph_from_edgelist(m)
+  return(g)
+}
+
+
+
+
 ellip_1 <- function(x) { # function to identify tokens as ellipsis or not.
   a <- NULL
   b <- unlist(x)

@@ -1,0 +1,2094 @@
+---
+title: "Instructions for pre-processing"
+output: html_notebook
+---
+
+
+***
+
+
+##### Note on file location: XSLT files are located in the "XSLT_files" subdirectory within the present working directory.
+
+
+***
+
+**General Notes:**
+
+* Many XML treebanks of individual works have been subdivided into parts, since the Perseids interface (http://sosol.perseids.org/sosol/) bogs down with files containing many more than one hundred sentences. As a result, there may be more than one series of sentence-level id attributes for a given treebank. This situations calls for the files to be consolidated and a single series of sentence id attributes to be generated.
+
+    + Create a XML file to hold all parts of a given work and copy the first file of the work into it.
+    + Add a "comment" element just after the "date" element at the top of the file. As the body of the "comment" element, insert the form of the standard reference for the work, for example, "Herodotus Book 1". This information will be used to add human readable references to all sentences and words in the file. This step makes debugging easier in later stages of data processing.
+    + Add each additional part of the work's treebank to the end of the new XML file.
+    + Run the XSLT script called "renumber_sent_consolidated_files.xsl" on the new XML file. Each sentence in the output file will contain an attribute called "consolidated_sent_id". **Note Well: the output directory must be set correctly for each XSLT script.**
+    
+* Human readable metadata is now added to each sentence and word element.
+
+     + On the output of the preceding XSLT, run the XSLT called "stand_ref_to_sent.xsl". This step will create an sentence attribute called "stand_ref" and insert the text of the "comment" element into this attribute, for example, "Aeschines Oration 1: s-1".
+     + On the output of the preceding XSLT file, run the XSLT called "stand_ref_to_word.xsl". This step will create for each word and attribute called "cite" and insert human readable metadata for sentence and word, for example, "Aeschines Oration 1: s-677 w-4".
+     
+* All files should be checked for missing values in any word attributes. **Such missing data may cause the code to break at a later step.** 
+
+    + Using the oXygen XML editor, use the "search and replace in files funciton" replace any empty quotation markes with "missing_value" or the like.
+    
+* Some of the older files in the Perseus Treebank contain features which will break later stages of the code. These features should be removed:
+
+    + On the target XML files, run the XSLT called "XSEG_removal.xsl". The attribute relation="XSEG" was a way to handle tokens improperly divided by the tokenizer. This method is no longer necessary, since the Arethusa/Alpheios platform now allows easy re-tokenization. The XSEG tag should therefore be avoided. **The code "XSEG_removal.xsl" will remove any sentence element containing a word with a relation attribute with the value "XSEG".**
+    + On the result of the preceding output, run the XSLT called "bad_numbering removal.xsl". Some older treebank files contain sentences in which the maximum value of the word id attributes does not match the number of tokens in the sentence. For example, a sentence might contain 10 word elements, but the id attribute of the last word in the sentence has the id value of 11. Such sentences will cause subsequent code to break. **The code "bad_numbering_removal.xsl" will remove any sentence element which has this unwanted characteristic.**
+    
+* These files are now ready for the next stage of processes sing, which add some basic data about word order as attributes to each word. This process is relatively complicated.
+
+***
+***
+
+###Notes on the XSLT scripts:
+
+```{r eval=FALSE}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:output method="xml" indent="yes"/>
+    
+    <xsl:template match="node() | @*">
+        <xsl:copy>
+            <xsl:apply-templates select="node() | @*"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="sentence">
+        <sentence>
+            <xsl:copy-of select="./@*"></xsl:copy-of>
+            <xsl:attribute name="consolidated_sent_id"><xsl:number></xsl:number></xsl:attribute>
+            <xsl:copy-of select="./node()"></xsl:copy-of>
+        </sentence>
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+The above code block is "renumber_sent_consolidated_files.xsl".  **Note that it will not execute from this R Notebook.**
+
+* All XSLT scripts are themselves XML code and must have a header with the appropriate code,, e.g., "\<?xml version="1.0" encoding="UTF-8"?>"
+* The second element ("xsl:stylesheet ...") is standard boilerplate for XSLT.
+* The third element (xsl:output ...) is used to produce a more readable XML document as output.
+* The essential workings of the script begin with the first template element. This template is sometimes referred to as the "standard identity transformation." Its function is to replicate all material in the target XML file in the output file.
+
+    + The attribute match attribute identifies the parts of the target XML on which the template should operate. Here the value of the match attribute is set to operate on all parts of the target file. The code **node()** indicates any XML element The code **@\*** indicates any XML attribute.  The two are joined with the pipe operator (|) meaning "or," and the resulting attribute will apply the template to all content of the target document.
+    + The operational part of this template is the copy element. This element will copy material in the target file as directed by the apply-templates element. The apply-templates element also calls other applicable templates (such as the second template here). The result is a reproduction of the target document with the changes applied by the other templates called.
+    
+* The second template element, through its **match** attribute, applies to every sentence element in the target file. When applied, it creates a new **sentence** element containing the results of these transformations:   
+
+    + The **copy-of** element makes a "deep copy" (i.e., a copy that includes children) of the material indicated by the **select** attribute. Here the period indicates the current element and the **/@\*** indicates all attributes of the relevant element. **The code thus preserves sentence attributes from the target file.**
+    + The **attribute** element creates a new attribute, whose name is given by the **name** attribute. 
+    + The value of the new attribute is created by the embedded **number** element. This element returns the integer position of the current node (here the current sentence element). *The result is a new sentence attribute caled "consolidated_sent_id" with a value of the integer position of the sentence, without regard to its original sentence id attribute.**
+    + The second **copy-of** element applies, through its **select** attribute, to all child elments of the current sentence node. Here, it copies into the output document all a sentence's word elements and their attributes.
+    
+***
+```{r eval=FALSE}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    version="2.0">
+    <xsl:output method="xml" indent="yes"/>
+    
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    
+    <xsl:template match="sentence">
+        <xsl:variable name="reference">
+            <xsl:value-of select="//comment"/>
+        </xsl:variable>
+        
+           <sentence>
+               <xsl:attribute name="stand_ref">
+                   <xsl:value-of select="$reference"/>: s-<xsl:value-of select="./@id"/>
+               </xsl:attribute>
+               
+               <xsl:attribute name="stand_ref">
+                   <xsl:value-of select="$reference"/>: s-<xsl:value-of select="./@consolidated_sent_id"/>
+               </xsl:attribute>
+               
+               <xsl:copy-of select="./node() | ./@*"></xsl:copy-of>
+           </sentence> 
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+
+The above code block is "stand_ref_to_sent.xsl".  **Note that it will not execute from this R Notebook.**
+
+* The first template is the standard "identity transformation" and replicates all material in the original XML and also applies changes as indicated in other relevant templates.
+* The second template applies to all sentence elements through its **match** attribute. It creates new **sentence** elements containing the results of these transformations:
+
+    + The **variable** element creates a variable named "reference" and, through the embedded **value-of** element populates the variable with the human-readable bibliographical data from the file's **comment** element.
+    + The first **attribute** element generates a sentence attributed called "stand_ref". Its value is drawn from the **reference** variable combined with the value of the sentence's **id** attribute.
+    
+* The third template is identical to the second except that it uses each sentence's **consolidated_sent_id** attribute to generate the value for the new attribute. Because, where the **id** and the **consolidated_sent_id** differ, the latter should be used, the **attribute** elements are ordered so as to give the consolidated sentence number the last word.   
+    
+***
+
+```{r eval=FALSE}
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="word">
+        <word>
+            <xsl:copy-of select="@*"/>
+            <xsl:attribute name="cite"><xsl:value-of select="parent::sentence/@stand_ref"/> w-<xsl:value-of select="./@id"/></xsl:attribute>
+        </word>
+        
+    </xsl:template>
+</xsl:stylesheet>
+
+
+```
+
+The above code block is "stand_ref_to_word.xsl".  **Note that it will not execute from this R Notebook.**
+
+* Once again, the main part of the script begins with the identity transformation.
+* The second template, through its **match** attribute, applies to each word element in the target XML file. It creates a new word element with the following features:
+
+    + The **copy-of** element replicates all word attributes of the original (as per the value of its **select** attribute).
+    + The **attribute** element creates an attribute named "cite" and gives it a value made up of several parts:
+    
+        + The first **value-of** element uses the so-called x-path axis **parent::sentence/** to access material from the parent sentence of the target word (See xquery documentation for more on these axes). In this case, the material replicated is the value of the sentence attribute containing the human-readable bibliographical data.
+        + The second **value-of** element replicates the value of the **id** attribute of the target word, as per the **select** attribute.
+        
+* The result is a **cite** value of this sort: "Herodotus Book 1 s-220 w-7".   
+
+***
+```{r eval=FALSE}
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:template match="@* | node()">
+        <xsl:copy>
+            <xsl:apply-templates select="@* | node()"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="sentence">
+        <xsl:choose>
+            <xsl:when test="./word[@relation = 'XSEG']">
+               
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:copy-of select="."></xsl:copy-of>
+            </xsl:otherwise>
+        </xsl:choose>
+        
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+The above code block is "XSEG_removal.xsl".  **Note that it will not execute from this R Notebook.**
+
+* The main body of the script starts, as usual, with the identity transformation.
+* The second template, through its **match** attribute, applies to each sentence element in the target XML.
+    + The template's applicability is controlled through a **choose** element; this element applies a conditional test as specified in the nested **when** element.
+    + The **test** attribute of this element specifies that this part of the template applies to any sentence containing any word which has a **relation** attribute with a value of XSEG.
+    + This **when** element has no other content, giving the result that any sentence meeting the criterion will be dropped from the output file.
+    + The **otherwise** element applies when the **test** attribute of the preceding **when** element evaluates as **FALSE.** In this case, the embedded **copy-of** element replicates the target sentence and all its children, as per its **select** attribute.
+ 
+ 
+ ***
+ ***
+ ***
+ 
+
+### Adding word order and graph-theoretical data as attributes.
+
+The following section gives the details of the generation of new variables from basic treebank files. Among the variables are the Dependency Distance for each word. This is an integer value based on the word order. The value is the linear index (word id) of the parent word minus the linear index of the target word. Thus, a positive value means the target word precedes the parent, a negative value means that the target word follows the parent word.  
+
+Other variables include Subtree, Neighborhood, and Degree.  These are based on graphical features: a subtree is a set of vertices including the target word and all vertices transitively dependent on the target. The Neighborhood is here a set of vertices including the target and all vertices directly dependent on the target. Degree is the cardinality (count) of the set of vertices in the Neighborhood (exclusive of the target word).  In other words, Degree is the number of direct dependents of the target word.
+
+***
+
+##### The following script contains many calls for user defined functions.  The code for these functions will be given and explained after the principal code block for generation of word order and graphical variables.
+
+
+```{r}
+
+
+rm(list = ls())
+
+source("./DD_functions.R")
+
+require(XML)
+require(igraph)
+
+
+
+
+# Identify directory with the input files.
+input.dir <- "./input_1"
+
+# Identify directory for the output files.
+output.dir <- "./ouput_1"
+
+
+files.v <- dir(path=input.dir, pattern=".*xml") # A vector with each file name from input directory.
+
+
+for (i in seq_along(files.v)) {
+  
+  doc <- xmlParse(file.path(input.dir, files.v[i]))  # create object with full xml of tree file. 
+  
+  sentence.nodes <- getNodeSet(doc, "//sentence") # extract setences from full tree xml
+  
+  sentence.list <- xmlApply(sentence.nodes, xmlToList) # convert nodes to list object
+  
+  subtree.xml <- xmlNode("subTree_document") # create root node for new xml document
+  
+  
+  token.number.l <- list()
+  
+  net.token.number.l <- list()
+  
+  for (j in seq_along(sentence.list)) {
+    
+    
+    
+    
+    sent_working <- lapply(sentence.list[[j]][1:length(sentence.list[[j]])  -1], extract_words) # extract target sentence 
+    # with tokens as items in list object.
+    
+    node.list <- vector("list", 6)
+    names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree", 
+                          "DepDist", "Neighborhood", "Degree")
+    
+    
+    node.list$Ellipsis <- sapply(sent_working, ellipsis_identification) # logical vector with TRUE for each ellipsis node in target sentence
+    # vector is necessary input for function DD_criteria().
+    
+    punct.index.v <- unlist(lapply(sent_working, find_punct_index))
+    
+    edge.graph  <- extract_edge_graph(sent_working) # create graph object (package = "igraph") from sent_working.
+    
+    
+    subtree.l <- ego(edge.graph, 50, mode = "out") # List of elements; each element contains id values
+    # for subtree of given node. A subtree is the given node
+    # and its direct AND indirect dependents.
+    
+    neighborhood.l <- ego(edge.graph, 1, mode = "out") # List of elements; each element contains id values
+    # for neighborhood of given node. A neighborhood is
+    # a given node and its direct dependents ONLY.
+    
+    
+    node.list$Degree <- degree(edge.graph, mode = "out")
+    
+    node.list$DepDist <- sapply(sent_working, DD_calculation) # produces a  vector; this mode is suitible for insertion as 
+    # values of attributes in word elements of the XML output.
+    
+    node.list$Subtree_eligibility <-  sapply(sent_working, Subtree_criteria)
+    
+    node.list$Neighborhood <- sapply(sent_working, neighborhood_extraction)
+    
+    node.list$Subtree  <- sapply(sent_working, subtree_extraction)
+    
+    
+    
+    sentence_DD <- round(mean(sapply(sent_working, abs_DD_calculation), na.rm = TRUE), digits = 4 )
+    
+    token_number <- length(sent_working)
+    
+    net_token_number <- token_number - length(punct.index.v)
+    
+    
+    a <- unlist(sentence.list[[j]][length(sentence.list[[j]])]) # make vector of sentence attributes.
+    # sentence attributes appear in last sublist of each list
+    # in sentence.list. This list is accessed using 
+    # length(sentence.list[[j]]).
+    
+    sent.xml <- xmlNode("sentence") # create sentence node
+    
+    sent.xml  <-  addAttributes(sent.xml, id = a[".attrs.id"], 
+                                document_id = a[".attrs.document_id"], 
+                                stand_ref = a[".attrs.stand_ref"],
+                                subdoc = a[".attrs.subdoc"], span = a[".attrs.span"],
+                                
+                                Mean_DepDist = sentence_DD,
+                                Sentence_length = token_number) 
+    
+    
+    
+    sent.xml <- append.xmlNode(sent.xml, lapply(sent_working, populate_word_element))
+    
+    subtree.xml <- append.xmlNode(subtree.xml, sent.xml) # Insert sentence into document xml.
+    
+    token.number.l[[j]] <-  token_number
+    
+    net.token.number.l[[j]] <- net_token_number
+    
+  } # end of loop j
+  
+  
+  saveXML(subtree.xml, paste0("./output_1/", files.v[i]))
+  
+  
+  
+  
+} # end of loop i
+
+
+```
+
+
+* The code begins by cleaning the workspace with the command **rm(list = ls()) .**
+* The line **source("./DD_functions.R")** makes available the user-defined functions stored in the file named. **require(XML)** and 
+**require(igraph)** load two necessary packages. 
+    + The **XML** package allows us to manipulate xml code.
+    + The **igraph** package has many functions to analyze features of graphs.
+* The code **input.dir <- "./input_1"** and **output.dir <- "./ouput_1"** create character vectors to store the names of the directories for input and output.
+* The information in the **input.dir** is used to create a character vector (**files.v**) containing the names of all files: **files.v <- dir(path=input.dir, pattern=".*xml").**  The **dir()** function allows a **pattern =** argument which takes a regular expression to return only files that match the pattern.
+
+#### The main part of the code is a  pair of nested loops.  The outer loop (loop i) processes each file in the input directory. The inner loop (loop j) processes each sentence in the file returned by loop i.
+
+#### Notes on loop i.
+
+* **seq_along(files.v)** provides iteration for each file in **files.v.**
+* **doc <- xmlParse(file.path(input.dir, files.v[i]))** creates an object of class **XMLDocument** which is the imput for other XML functions. 
+    + **file.path()** is a convenience function which creates a character vector taking the inputs and adding the separator "/".
+    + Here the inputs are **input.dir**, the character vector of the input directory and **files.v[i]**, the character vector of file names. The index **[i]** restricts the input to the file corresponding with the current iteration of the **for()** loop.
+* **sentence.nodes <- getNodeSet(doc, "//sentence"):** The function **getNodeSet()** finds XML nodes which match a particular criterion. The matching criteria are specified using XPath syntax. Here **//sentence** is the XPath expression which identifies all sentence nodes in the input object **doc.** The two forward slashes indicate that the sentence node can be located at any level of the XML hierarchy.
+* **sentence.list <- xmlApply(sentence.nodes, xmlToList):** This code converts the data from a node set to a R list object. The R list object can be manipulated more easily than the node set object. 
+    + **xmlApply()** is a function analogous to the R's general family of **apply** functions.  Here it applies the funciton **xmlToList** to every node in **sentence.nodes.** The result is a list object in which the first level holds sentence data. The sentence level list holds a second level list with entries for each word.
+* **subtree.xml <- xmlNode("subTree_document"):** This line creates a root XML node from which a new output XML document is built by successive code. The name **"subTree_document"** is arbitrary. 
+* **token.number.l <- list():** creates a list object to contain the number of tokens in each sentence.
+* **saveXML(subtree.xml, paste0("./output_1/", files.v[i]))** saves the result of each iteration of loop i to an output file. **saveXML()** is a function from the XML package. The **paste0()** function supplies the file name of the output file.
+    + **paste0()** returns a character vector of its inputs. Here **"./output_1/"** is the directory, **file.v[i]** supplies the file name for the current iteration of loop i.
+
+
+#### Notes on loop j
+
+* **seq_along(sentence.list):** this parameter iterates for every element in **sentence.list.**
+* **sent_working <- lapply(sentence.list[[j]][1:length(sentence.list[[j]])  -1], extract_words):** creates a list object including the data from a single sentence. 
+    + **lapply()** applies a function to each item  in the input. Here the input is the sentence in **sentence.list** corresponding with the current iteration of the j **for()** loop. This input, however, is limited by indexing to exclude the last item in the level-2 list, which is not word data, but the names and values of sentence attributes.
+    + **[1:length(sentence.list[[j]])  -1]** uses the **length()** function to identify the last item in the jth iteration of the list. In combination with the  index **[1: ... -1],** the result is level-2 items but the last.
+    + The function applied here by **lapply()** isthe user created **extract_words().** This function produces a character vector for each input token. These vectors are arranged in a list object, since this is the output specific to **lapply.**
+* **node.list <- vector("list", 6)** creates a list.object to store the new variables to be created. It may save memory and time to assign space to such storage objects at the beginning of a loop instead of building them dymaically. Here the length of the resulting list is 6.
+* **names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree","DepDist", "Neighborhood", "Degree")** gives a name to each of the 6 list items to contain the new variables. 
+* **node.list$Ellipsis <- sapply(sent_working, ellipsis_identification)** populates the **Ellipsis** element of **node.list** with a logical or Boolean vector with TRUE or FALSE, according to whether the target token is a supplied ellipsis. Such not are not elligible for dependency distance calculations etc.
+    + **sapply()** applies a function to each input and produces a vector if possible. The input here is each list item of **sent_working** (i.e., each token of the sentence); the function is the user-defined **ellipsis_identification().**
+*  **punct.index.v <- unlist(lapply(sent_working, find_punct_index))** produces a numberic vector containing the linear index (i.e., the token id attribute value) of punctuation in the sentence. These tokens are excluded from calculations such as Dependency Distance.
+    + **lapply()** applies the user-defined function **find_punct_index()** to each word in **sent_working** and returns a list object.
+    + **unlist()** converts the output of **lapply()** to a vector from a list.
+* **edge.graph  <- extract_edge_graph(sent_working)** uses a user-defined function to create an object of the class "igraph". This object serves as the input for several graph-theoretical calculations.  
+* **subtree.l <- ego(edge.graph, 50, mode = "out")** creates a list object containing the linerar index (i.e., the token id attribute value) of vertices connected with the target token. The function **ego()** is from the igraph package. Here, its arguments are 
+    + **edge.graph**, the input igraph object; 
+    + **50**, the **order** argument which sets the limit in distance within which to find connected vertices (i.e., find connected vertices no more that 50 edges away from the target word); 
+    + and **mode = "out"**, which specifies only descendents in a directed graph such as a dependency tree. By default. 
+    + The list object returned by **ego()** (here **subtree.l**) contains a list item for each word in the input sentence. Each list item is of the type igraph vertex sequence (igraph.vs). The set includes the id value of the target word itself, although this parameter may be adjusted. 
+* **neighborhood.l <- ego(edge.graph, 1, mode = "out")** creates a list object containing the vertex neighborhood of the target word. The neighborhood is the target word itself and its immediate descendants. The igraph functio **ego()** is used, with its **order** argument set to 1.
+* **node.list$Degree <- degree(edge.graph, mode = "out")** populates the appropriate list item in **node.list** with a numerical vector of vertex degree for each token in the sentence. **degree** is a function of the igraph package.
+* **node.list$DepDist <- sapply(sent_working, DD_calculation)** populates the appropriate list item in **node.list** with a character vector of values representing the dependency distance of each token. **sapply()** applies the user-defined function **DD_calculation()** to each item in **sent_working.**
+* **node.list$Subtree_eligibility <-  sapply(sent_working, Subtree_criteria)** populates the appropriate list item in **node.list** with a logical vector with a value for each token in the input sentence. **sapply()** applies the user-defined function **Subtree_criteria()** to each item in the input **sentence_working.** This code returns FALSE for each punctuation mark except those used as coordinators or appositional elements.
+* **node.list$Neighborhood <- sapply(sent_working, neighborhood_extraction)** populates the appropriate list item in **node.list** with a character vector of the vertex neighborhood for each token. **sapply()** applies the user-defined function **neighborhood_extraction()** to each element in the input sentence. The vertex neighborhood is the set of linear indices for the target word and all vertices immediately dependent on it.
+* **node.list$Subtree  <- sapply(sent_working, subtree_extraction)** populates the appropriate list item in **node.list** with a character vector of the subtree for each token. **sapply()** applies the user-defined function **subtree_extraction()** to each item in **sent_working.** The vertex subtree is the set of linear indices for the target word and all words dependent on it, directly or indirectly.
+* **sentence_DD <- round(mean(sapply(sent_working, abs_DD_calculation), na.rm = TRUE), digits = 4 )** creates a numeric vector of one element representing the average dependency distance for eligible tokens in the sentence. 
+    + **sapply()** applies the user-defined function **abs_DD_calculation()** to each element in **sent_working**. The result is a numeric vector with an integer value or NA for each token in the input sentence.
+    + **mean()** returns the average of the values of the numeric vector returned by **sapply(sent_working, abs_DD_calculation).** Here, **mean()** takes the argument **na.rm = TRUE**, since the input vector to this function often contains NAs for punctuation, ellipses, etc.
+    + **round()** limits the number of decimals in the value returned by **mean()**. Here, the value of **round()** is specified by the argument **digits = 4.**
+* **token_number <- length(sent_working),** using the **length()** function, creates a integer vector with one element representing the length in tokens of the input sentence. 
+* **net_token_number <- token_number - length(punct.index.v)** creates an integer vector with one element representing the total length in tokens of the input sentence minus the number of punctuation marks in the sentence. 
+* **a <- unlist(sentence.list[[j]][length(sentence.list[[j]])])** creates a character vector of sentence attributes. Sentence attribute data are stored in the last item in list in **sentence.list.** To access the last item, the index **[length(sentence.list[[j]])]** is used. The function **length()** effectively gives the index of the last item in its input (here **sentence.list[[j]]**).
+* **sent.xml <- xmlNode("sentence")** creates an XML node named "sentence" to hold generated data for each sentence. The function **xmlNode()** is from the XML package.
+* **sent.xml  <-  addAttributes(sent.xml, id = a[".attrs.id"], document_id = a[".attrs.document_id"], stand_ref = a[".attrs.stand_ref"], subdoc = a[".attrs.subdoc"], span = a[".attrs.span"], Mean_DepDist = sentence_DD, Sentence_length = token_number)** populates the sentence xml node with a set of attributes. Most attributes have been merely extracted from the corresponding input setence node. 
+    + **a[".attrs.id"]** is the input sentence id attribute.
+    + **a[".attrs.document_id"]** is the cts:urn of the input sentence.
+    + **a[".attrs.stand_ref"]** is the human-readable bibliographical reference of the source of the input sentence.
+    + **a[".attrs.subdoc"]** is the section number of the source for the input sentence.
+    + **Mean_DepDist = sentence_DD** adds the new variable giving average dependency distance.
+    + **Sentence_length = token_number** adds the total number of tokens in the sentence.
+* **sent.xml <- append.xmlNode(sent.xml, lapply(sent_working, populate_word_element))** adds word elements to each sentence node and populates each word element with attributes from the input word element and the newly generated attributes. 
+    + **append.xmlNode()** is a function from the XML package which creates a new child node and appends it to the target, provided by the input argument (here, **sent.xml**).
+    + The second argument of **append.xmlNode()** is supplied by **lapply(),** which applies the user-defined function **populate_word_elements()** to each element of **sent_working**.
+* **subtree.xml <- append.xmlNode(subtree.xml, sent.xml)** appends the populated sentence node to the root node (here, **subtree.xml**).
+* **token.number.l[[j]] <-  token_number** populates the list object with token number in each sentence.
+* ** net.token.number.l[[j]] <- net_token_number** populates the list object with token number minus punctuation in each sentence.
+
+
+***
+***
+***
+
+### User-Defined Functions¶
+
+```{r}
+extract_words <- function(x) { #  function to extract data from each word element in sentence. 
+                               
+  words.v <-  unlist(x)
+  return  (words.v)
+}
+
+```
+
+
+* **extract_words()** takes a list of tokens as its input.
+    + **words.v <-  unlist(x)** transforms the list object into a character vector.
+    + Because the **lapply()** function supplies input one token at a time, the vector **words.v** produces a named character vector with the names generated from the name of the XLM element and attribute as follows: "word.id", "word.form", "word.lemma", "word.postag", "word.relation", "word.head", and "word.cite". 
+* The **return()** function specifies the value to be passed to the matrix code from the user-defined function. Its use is optional; if **return()** is omitted, the function returns the last value evaluated by the funciton code.        
+    
+    
+```{r}
+ellipsis_identification <- function(x) {
+  ellipse_check <- "insertion_id" %in% names(x)
+  return(ellipse_check)
+}
+```
+
+* **ellipsis_identification** checks a token to see if it is an ellipsis. All ellipsis word elements generated by the Arethusa platform contain an attributed named "insertion_id". The controlling function **sapply()** here inputs one token at time from the input sentence and outputs a logical vector with TRUE or FALSE for each token in the input sentence. The values of this vector are generated by the **%in%** operator which checks its first argument against its second.
+
+```{r}
+find_punct_index <- function(x) { # A function to return id values of each punctuation mark in sentence.
+  word.v <- NULL
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+    
+  
+  if (TRUE %in% word.v) { 
+    return(as.numeric(x["id"]))
+  }
+  
+}
+```
+* **find_punct_index()** returns the index values of any token whose relation attribute indicates that it is a punctuation mark.  Punctuation marks of the relation values indicated should not have dependencies and should not be figured into dependency distances, etc. When the function is applied to **sent_working** by **lapply()** and the result is sent to **unlist()**, the code returns a named numeric vector. 
+    + **word.v <- NULL** creates a vector to hold the results from the evaluation of relation values.
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** returns true if the relation of the input element is "AuxX", which is reserved for commas. 
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** returns TRUE if the relation of the input element is "AuxK", which is reserved for sentence final punctuation.
+    + **word.v <- append(word.v, x["relation"] == "AuxG")** returns TRUE if the relation of the input element is "AuxG", which is generally used for quotation marks, parentheses and the like.
+    
+* The above code produces a logical vector. This vector is input for the next step in the function:
+    + The **if()** function with the argument **TRUE %in% word.v** tests for whether the target token meets any of the criteria specified for punctuation. If any of the previous code put TRUE in the **word.v** vector, this code block will return the index value of the current token from the **find_pnct_index()** function.
+    + **as.numeric(x["id"])** is used as the argument for the **return()** function in order to return a number. As input **x["id"]** is a character vector. As such, it does not allow the numeric calculation that will be necessary in subsequent code. The funciton **as.numeric()** coerces its argument to a number, if possible.
+    
+   
+   
+    
+    
+    
+```{r}
+extract_edge_graph <- function(sentence) {
+  a <- find_heads(sentence)
+  b <- find_ids(sentence)
+  m <- matrix(a, ncol = 1)
+  m <- cbind(m, b)
+  index <- which(m[, 1] > 0)
+  m <- m[index, ]
+  if (length(m) == 2) {
+    m <- matrix(m, nrow = 1)
+  }
+  g <- graph_from_edgelist(m)
+  return(g)
+}
+
+```
+
+* **extract_edge_graph()** returns an igraph object (cf. the igraph package) representing **sent_working.** Note that this function itself includes two user-defined function which will be detailed in the next sections.
+
+    + **a <- find_heads(sentence)** creates a numerical vector of values of the head attributes of the input sentence.
+    + **b <- find_ids(sentence)** creates a numerical vector of values of id attributes.
+    + **m <- matrix(a, ncol = 1)** creates a matrix object from vector **a**. This type of object is necessary later in this function. Initially, the matrix will have as many rows as tokens in the input sentence.
+    + **m <- cbind(m, b)** adds vector **b** as a column to a matrix **m**. The second argument must have the same length as the number of rows in the first argument.
+    + **index <- which(m[, 1] > 0)** creates a numerical vector of the values of the rows in which the head attribute greater than 0. This identifies the tokens which depend directly on the hypothetical sentence root, usually the sentence PRED and punctuation without dependencies. The relationship between these tokens and the root is not used in our calculations.  Of course the PRED itself, and any other tokens dependent on the root are not necessarily excluded.
+        + The function **which()** returns the index values of the items identified by the arguments. Here **m[, 1] > 0** checks the first column of all rows for a value greater than 0. When subsetting a matrix with **[...],** reference to the two dimensions of the matrix is given by inegers separated by a comma. The first number indicates row, the second indicates column. It a number is omitted, all rows (or columns) are included. Thus, **m[, 1]** refers to the first column of all rows of matrix **m.**
+    + **m <- m[index, ]** changes matrix **m** by dropping the rows indicated by the **index** vector. The subset **[index, ]** means the row numbers given in the **index** vector and all associated columns.
+    
+* The next step in this function is an **if()** block. This block is necessary in case of very short sentences. For example, there may be a sentence of two words, a PRED with a head attribute of 0 and a SBJ with a head of, say, 1, dependent on the PRED.  The preceding code in this function will remove the values for the PRED from matrix **m** leaving an object with two values only, the head and id attributes of teh SBJ. The problem is that R will convert this matrix of two elements to a simple numerical vector. Such a vector is not accepted as input in the igraph function needed to complete the current function. 
+    + The **if()** function has the argument **length(m) == 2**. The length of a matrix is the product of the number of its row and the number of its columns. So this argument will catch sentences of only one token not dependent on the root.
+    + **m <- matrix(m, nrow = 1)** reestablishes **m** as a matrix of one row and two columns, not a vector. 
+    + **g <- graph_from_edgelist(m)** produces a igraph object representing a graph of the input sentence. The function **graph_from_edgelist()** takes an edgelist as its input.  An edgelist is a matrix giving, for edge edge in the graph, the specification of the two vertices connected by that edge. Matrix **m** is such an edgelist.
+     + **return(g)** outputs the igraph object to the matrix code.
+     
+     
+     
+    
+    
+```{r}
+
+find_heads <- function(sentence) {
+  a <- unlist(sentence)
+  
+  a <-  a[which(names(a) == "word.head")]
+  a <- as.numeric(a)
+  return(a)
+}
+
+
+```
+
+* **find_heads()** returns a numeric vector of the values of the head attributes of all tokens in the input sentence.
+    + **a <- unlist(sentence)**  creates a character vector containing elements with the values of all tokens in input sentence.
+    + **a <-  (a[which(names(a) == "word.head")]** reduces the contents of vector **a** to the values of the head attribute of all tokens.
+        + **names(a) == "word.head"** returns a logical vector with TRUE for each element in **a** with the name "word.head".
+        + **which()** returns a vector of index integers giving the position of each TRUE element in its input.
+        + **a[...]** subsets the vector **a** according to the evaluation of the code between the square brackets.
+    + **return(a)** outputs the vector **a** to the matrix code.    
+    
+    
+    
+```{r}
+
+find_ids <- function(sentence) {
+  a <- unlist(sentence)
+  
+  a <-  a[which(names(a) == "word.id")]
+  a <- as.numeric(a)
+  return(a)
+}
+
+```
+
+* **find_ids()** returns a numeric vector of the values of the id attributes of all tokens in the input sentence.
+    + **a <- unlist(sentence)**  creates a character vector containing elements with the values of all tokens in input sentence.
+    + **a <-  (a[which(names(a) == "word.head")]** reduces the contents of vector **a** to the values of the id attribute of all tokens.
+        + **names(a) == "word.id"** returns a logical vector with TRUE for each element in **a** with the name "word.id".
+        + **which()** returns a vector of index integers giving the position of each TRUE element in its input.
+        + **a[...]** subsets the vector **a** according to the evaluation of the code between the square brackets.
+    + **return(a)** outputs the vector **a** to the matrix code.    
+    
+    
+
+
+```{r}
+
+
+DD_calculation <- function(x) { # A function to calculate DD for each eligible node.
+  
+  word.v <- NULL
+  word.v <- append(word.v, as.numeric(x["head"]) == 0) # Nodes dependent on 0 (sentence root, etc) have no DD.
+  
+  # a set of lines to catch punctuation; no DD should be figured for punctuation marks. This code is somewhat redundant,
+  # since it checks for relation values commonly assigned to punctuation and also checks part of speech attribute
+  # for value "punctuation."
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  word.v <- append(word.v, substr(x["postag"], 1, 1) == "u") # If part of speech is "punctuation", mark TRUE.
+  
+  
+  word.v <- append(word.v, "insertion_id" %in% names(x)) # Nodes that are ellipses have no DD.
+  word.v <- append(word.v, node.list$Ellipsis[as.numeric(x["head"])]) # Nodes dependent on ellipses have no DD. This assessment
+  # requires ellipsis.v as input. That vector is the output of
+  # function ellip_1().
+  
+  # node_DD.v <- NULL
+  
+  
+  if (TRUE %in% word.v) { # do not calculate DD
+    
+    node_DD.v <- NA
+    
+  } else {
+    # p.holder.v <- length(seq(heads.v[k], ids.v[k])) - length(setdiff(seq(heads.v[k], ids.v[k]), punct.index.v))
+    b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])),
+                                                                                   punct.index.v))
+    
+    if (as.numeric(x["head"]) > as.numeric(x["id"])) { # Selects for a head node that follows the child node.
+      a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)  # Effectively moves child node (the subtrahend) closer in value to the head.
+      
+      if (a > 6) {
+        node_DD.v <-  "GT6"
+        
+      } else {
+        
+        node_DD.v <- a 
+      }
+      
+    } else { # Selects for a head node that precedes the child node.
+      # p.holder.v <- (heads.v[k] + p.holder.v) - ids.v[k] # Effectively moves head node (the minuend) closer in value to the child.
+      
+      a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"]) # Effectively moves head node (the minuend) closer in value to the child.
+      if ( a < (0 - 6 )) {
+        
+        node_DD.v <- "LT-6"
+        
+      } else {
+        
+        node_DD.v <- a
+      }
+      
+    }
+    
+    # if (heads.v[k] > ids.v[k])  { # Tests whether head node follows child node.
+    
+    
+    
+  }
+  
+  return(node_DD.v)
+  
+} # end of DD_calculation() function.
+
+
+
+```
+
+* **DD_calculation()** returns a character vector giving the dependency distance for each eligible token in the input sentence.
+    + **word.v <- NULL** creates an empty vector to store logical values based on eligibility for dependency distance calculation.
+    + **word.v <- append(word.v, as.numeric(x["head"]) == 0)** adds a logical value to the end of the vector **word.v**. The value is TRUE if the target node has a head attribute with a value of 0. This step is meant to catch the sentence root, etc. which have no DD.
+        + **as.numeric(x["head"]) == 0** returns TRUE for a target element for which the head attribute is 0. The function **as.numeric** is necessary because the word attributes in the input sentences have been stored as character vectors. 
+        + **x["head"]** selects the subset consisting of the vector element with the name "head." This notation is possible because the data in the list object **sent_working** are stored in a named character vector. The variable **x** indicates whatever is passed into the function by the matrix code. Here, the words in **sent_working** passed in one at a time by the function **sapply.**
+        + **append( )** adds its second argument to its first argument. 
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxX", FALSE otherwise. AuxX is the annotation for commas with no dependencies.   
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxK", FALSE otherwise. AuxK is the annotation for sentence-final punctuation, which  have no dependencies. 
+    + ** word.v <- append(word.v, x["relation"] == "AuxG")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxG", FALSE otherwise. AuxG is the annotation for bracketing punctuation, which  have no dependencies. 
+    + **word.v <- append(word.v, substr(x["postag"], 1, 1) == "u")** adds a logical value TRUE to **word.v** if the postag value indicates that the target word is a punctuation mark, which usually do not have dependencies. This code is a redundancy, since punctuation marks ineligible for dependency distance should be caught by the preceding code checking the relation attribute.
+        + **substr(x["postag"], 1, 1)** returns the first character of the string with the name "postag".  The function **substr()** belongs to base R. Its first argument is the input string. The second argument is the index of the first character in the string to be returned. The third argument is the index of the last character in the string to be returned. Here, the character representing the part of speech is a one-letter long first element in the postag string. Thus, **1, 1** is passed to the function as second and third argument meaning: "return the first and only the first character of the input string."
+        + **substr(x["postag"], 1, 1) == "u"** returns TRUE if the first character of **x["postag"]** is "u", the symbol for a punctuation mark; otherwise it returns FALSE.
+    + **word.v <- append(word.v, "insertion_id" %in% names(x))** adds a logical value to **word.v**, TRUE if the target word is an ellipsis, FALSE otherwose. Dependency Distance should not be calculated for ellipses, since such words have no location in the linear order of a sentence.
+        + **"insertion_id" %in% names(x)** uses the **%in%** operator to return TRUE if the string "insertion_id" is among the names of the attributes of the target word; otherwise it returns FALSE. The **insertion_id** attribute appears only in words added through the ellipsis function of Arethusa.
+    + **word.v <- append(word.v, node.list\$Ellipsis[as.numeric(x["head"])])** adds a logical value to **word.v**, TRUE if the word indicated by the head attribute of the target word is an ellipsis. Words dependent on ellipses have no Dependency Distance.
+        + **as.numeric(x["head"])** returns the value for the head attribute of the target word and coreces it to a numeric vector.
+        + **node.list\$Ellipsis[...]** subsets the specified  element of the **Ellipsis** sublist in the **node.list** list object. This sublist contains a named logical vector with TRUE for an ellipsis, otherwise FALSE. This vector is created by the user-defined function **ellipsis_identification( )**, which has run earlier in the **j loop**. 
+        + **node_DD.v <- NULL** creates an empty vector to contain the Dependency Distance value for the target word. 
+    + The **if( ) { }** function controls the code which calculates the Dependency Distance.
+        + The argument **TRUE %in% word.v** uses the **%in%** operator to identify words that are not eligible for DD calculation. If any of the preceding code has added TRUE to the vector **word.v**, that word should not have a dependency distance.
+            + **node_DD.v <- NA** populates the vector **node_DD.v** with an NA element. NA is a logical constant which indicates "not applicable". 
+        + The  **else{ }** function applies the code block it contains to any word not meeting the criteria specified in its controlling **if( ) { }** function. Here it applies to all words eligible for Dependency Distance.   
+            + **b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v))** populates the vector **b** with the number of punctuation marks between the target word and its head.
+                + **seq(as.numeric(x["head"]), as.numeric(x["id"]))** returns a sequence of integers beginning with the value of the head of the target word and ending with the id value of the target word itself. The function **seq( )** generates a sequence of numbers; the first argument is the number from which to start the sequence, the second the number with which to end it.  Here, both arguments are wrapped in **as.numeric( )** because the input data for the input word are stored in a character vector.
+                + **length(seq(as.numeric(x["head"]), as.numeric(x["id"])))** returns the cardinality of the vector containing the interval from the target word's head attribute value to the value of its id attrubute. The function **length( )** returns the cardinality of the input.
+                + **setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v)** returns a vector containing the index values for the inclusive interval from the value of the target word's head attribute to the value of its id attribute, **excluding from the sequence the index values for punctuation marks.** The function **setdiff( )** returns the elements of its first argument which are not also in its second argument. Here, the second argument, **punct.index.v** is a vector of the id attribute values of the puntuation marks in the sentence. Punctuation marks occurring between and word and its head must not be affect the value of the word's dependency distance. Thus, **setdiff(..., punc.index.v)** eliminates the indices of punctuation from the interval passed to it as its first argument.
+                + **length(...) - length(...) takes the number of elements in the inclusive interval from head to target word and subtracts from it the number of elements in the reduced interval (i.e., the same inclusive interval with the indices of punctuatin marks excluded). The result of the subtraction is the number of punctuation marks in the interval.
+            + The nested **if (as.numeric(x["head"]) > as.numeric(x["id"])) {...}** command controls for whether the head precedes or follows the target word. Different calculations are needed for each.  
+                + The argument **as.numeric(x["head"]) > as.numeric(x["id"])** selects the cases in which the head follows the target word. The two terms are compared by the greater than operator.
+                    + **a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the subtrahend (the id attribute value of the target). The effect of this step is to increase the subtrahend by the number of punctuation marks in the relevant interval, thus decreasing the Dependecny Distance by the same number.
+                   + The nested **if (a > 6) { ... }** command selects Dependency Distance values greater than six for special handling. All DD values of 6 or greater are put in a single "bin" to be considered together. The argument **a > 6** uses the greater than operator to identify the relevant values.    
+                        + **node_DD.v <-  "GT6"** populates the vector **node_DD.v** with a character string indicating "greater than 6."
+                    + **else {...}** selectes for DD values in the range from 1 to 6.
+                        + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+              + The **else {...}** command selects for cases in which the target word follows the head.
+                  + **a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"])** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the minuend (the head value; the term to be subtracted from). The effect of this step is to increase the value of the result by the number of punctiation marks in the interval.  Because the result of the subtraction here is always negative, increasing the value results in a smaller negative number (i.e., a number of smaller absolute value) by moving it toward 0. 
+                  + The nested **if ( a < (0 - 6 )) {...}** selects for DD values which are less than negative 6. The less than operator is used for this calculation.
+                      + **node_DD.v <-  "LT-6"** populates the vector **node_DD.v** with a character string indicating "less than negative 6."
+                  + **else {...}** selectes for DD values in the range from -1 to -6.
+                      + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+    + **return(node_DD.v)** passes the Dependency Distance of the target word to the matrix code.                  
+                      
+ 
+```{r}
+
+Subtree_criteria <- function(x) { # function to identify tokens for which no DD should be figured.
+  
+  word.v <- NULL 
+  
+  
+  # a set of lines to catch punctuation; no DD should be figured for punctuation marks. 
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  
+  
+  if (TRUE %in% word.v) { # Checks word.v for any TRUE value.  Such a value disqualifies node from DD calculation.
+    return(FALSE) # Node does NOT qualify for DD calculation.
+  } else
+    return(TRUE) # Node may be used in DD calculation.
+  
+}
+
+```
+
+
+* **Subtree_criteria( )** returns a logical vector with an element for each token in the input sentence, TRUE if the token may be part of a subtree, otherwise FALSE.
+    + **word.v <- NULL** creates a vector in which to store the results of the various tests.
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** adds TRUE if the relation value of the input is "AuxX", the annotation for a comma without dependencies.
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** adds TRUE if the relation value of the input is "AuxK", the annotation for sentence-final punctuation.
+    + **word.v <- append(word.v, x["relation"] == "AuxG") adds TRUE if the relation value of the input is "AuxG", the annotation for bracketing punctuation.
+    + **if (TRUE %in% word.v) { ... }** checks whether any of the criteria specified above have been met using the **%in%** operator.
+        + **return(FALSE)** passes the value of FALSE to the output vector if any of the above criteria is TRUE.
+    + **else {...}** handles tokens for which none of the specified criteria have been met.
+        + ** return(TRUE)** passes the value of True to the output vector, indicating that the target token does qualify for subtree consideration and related calculations.
+        
+
+        
+```{r}
+
+neighborhood_extraction <- function(x) {
+  
+  if (as.numeric(x["id"]) <= length(neighborhood.l) 
+      & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility))  {
+    
+    if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
+      a <- neighborhood.l[[as.numeric(x["id"])]]
+      a <- paste0(a, collapse = " ")
+      
+    } else {
+      a <- NA
+    }
+    
+    
+  } else {
+    
+    a <- NA
+    
+    
+  }
+  
+
+  return(a)
+}
+
+
+```
+
+* **neighborhood_extraction( )** returns a named character vector containing the id attribute values of the target word and its immediate dependents.
+    + The first **if ( ) {...}** command selects for tokens whose id attribute values fall within the span of the **neighborhood.l** igraph object and the **Subtree_eligibility** vector stored in **node.list**. Vagaries in annotation sometimes cause the igraph functions to produce a vector set (as in **neighborhood.l**) with fewer vertices than there are tokens in the sentence. Such instances break the code. 
+        + **as.numeric(x["id"]) <= length(neighborhood.l) & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** joins two conditions with the **and** operator (**&**). The collocation returns TRUE if the code on both sides of the **&** evaluates as TRUE.
+            + **as.numeric(x["id"]) <= length(neighborhood.l)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in **neighborhood.l** The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+            + **as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in the **Subtree_eligibility** vector of **node.list**. The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+        + The nested **if ( ) {...}** function checks for whether the target token is eligible for a subtree according to the criteria computed for the **Subtree_eligibility** vector.
+            + **node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE** returns TRUE if element of the **Subtree_eligibility** vector corresponding to the input token's id value is also TRUE. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+            + **a <- neighborhood.l[[as.numeric(x["id"])]]** populates a vector with the element of the igraph object **neighborhood.l** which corresponds to the id value of the input token. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+            + **a <- paste0(a, collapse = " ")** transforms the input vector **a** from an igraph vertex sequence to a character vector. The function **paste0( )** returns a vector of character strings from its input. The argument **collapse = " "** sets the function to join all elements of the input to a single string element in the output, each separate element of the input now separated by a white space in the single output string.
+        + The nested **else {...}** command applies the enclosed code to an input token which is not eligible for a subtree.
+            + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+    + The outer **else {...}** command applies the enclosed code to an input token whose id value does not fall within the number of elements in **neighborhood.l** or **Subtree_eligibility**.
+        + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+    + **return(a)** passes the value of **a** to the matrix code.    
+           
+
+```{r}
+
+subtree_extraction <- function(x) {
+  
+  if (as.numeric(x["id"]) <= length(subtree.l)
+      & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)) {
+    
+    if (node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE) {
+      a <- subtree.l[[as.numeric(x["id"])]]
+      a <- paste0(a, collapse = " ")
+      
+    } else {
+      a <- NA
+    }
+    
+    
+  } else {
+    
+    a <- NA
+    
+  }
+ 
+  return(a)
+}
+
+
+```
+
+* **subtree_extraction( )** returns a named character vector containing the id attribute values for the target word and its descendants, both direct and indirect.
+    + The first **if ( ) {...}** command selects for tokens whose id attribute values fall within the span of the **neighborhood.l** igraph object and the **Subtree_eligibility** vector stored in **node.list**. Vagaries in annotation sometimes cause the igraph functions to produce a vector set (as in **neighborhood.l**) with fewer vertices than there are tokens in the sentence. Such instances break the code. 
+        + **as.numeric(x["id"]) <= length(neighborhood.l) & as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** joins two conditions with the **and** operator (**&**). The collocation returns TRUE if the code on both sides of the **&** evaluates as TRUE.
+            + **as.numeric(x["id"]) <= length(neighborhood.l)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in **neighborhood.l** The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+            + **as.numeric(x["id"]) <= length(node.list$Subtree_eligibility)** returns TRUE if the value of the target token's id attribute is less than or equal to the number of elements in the **Subtree_eligibility** vector of **node.list**. The number if these elements is calculated by the **length( )** function. The function **as.numeric( )** must be used in the first term because the input data are stored as a named character vector and are not suitable for a mathematical operation such as **<=**.
+        + The nested **if ( ) {...}** function checks for whether the target token is eligible for a subtree according to the criteria computed for the **Subtree_eligibility** vector.
+            + **node.list$Subtree_eligibility[[as.numeric(x["id"])]] == TRUE** returns TRUE if element of the **Subtree_eligibility** vector corresponding to the input token's id value is also TRUE. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+                + **a <- subtree.l[[as.numeric(x["id"])]]** populates a vector with the element of the igraph object **subtree.l** which corresponds to the id value of the input token. The function **as.numeric( )** must be wrapped around **x["id"]** because all values on the input token are strings in a named chracter vector and thus will not work to subset a vector with the **[ ]** function.
+                + **a <- paste0(a, collapse = " ")** transforms the input vector **a** from an igraph vertex sequence to a character vector. The function **paste0( )** returns a vector of character strings from its input. The argument **collapse = " "** sets the function to join all elements of the input to a single string element in the output, each separate element of the input now separated by a white space in the single output string.
+       + The nested **else {...}** command applies the enclosed code to an input token which is not eligible for a subtree.
+           + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+   + The outer **else {...}** command applies the enclosed code to an input token whose id value does not fall within the number of elements in **subtree.l** or **Subtree_eligibility**.
+       + **a <- NA** sets the value of the vector **a** to NA ("not applicable").
+   + **return(a)** passes the value of **a** to the matrix code.  
+       
+ 
+ 
+```{r}
+
+abs_DD_calculation <- function(x) { # A function to calculate DD for each eligible node.
+  a <- NULL
+  word.v <- NULL
+  word.v <- append(word.v, as.numeric(x["head"]) == 0) # Nodes dependent on 0 (sentence root, etc) have no DD.
+  
+  # a set of lines to catch punctuation; no DD should be figured for punctuation marks. This code is somewhat redundant,
+  # since it checks for relation values commonly assigned to punctuation and also checks part of speech attribute
+  # for value "punctuation."
+  word.v <- append(word.v, x["relation"] == "AuxX") # If node is comma, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxK") # If node is sentence final punctuation, assign TRUE.
+  word.v <- append(word.v, x["relation"] == "AuxG") # If node is bracketing punctuation, assign TRUE.
+  word.v <- append(word.v, substr(x["postag"], 1, 1) == "u") # If part of speech is "punctuation", mark TRUE.
+  
+  
+  word.v <- append(word.v, "insertion_id" %in% names(x)) # Nodes that are ellipses have no DD.
+  word.v <- append(word.v, node.list$Ellipsis[as.numeric(x["head"])]) # Nodes dependent on ellipses have no DD. This assessment
+  # requires ellipsis.v as input. That vector is the output of
+  # function ellip_1().
+  
+  node_DD.v <- NULL
+  
+  
+  if (TRUE %in% word.v) { # do not calculate DD
+    
+    node_DD.v <- NA
+    
+  } else {
+    
+    
+    b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])),
+                                                                                   punct.index.v))
+    
+    if (as.numeric(x["head"]) > as.numeric(x["id"])) { # Selects for a head node that follows the child node.
+      
+      a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)  # Effectively moves child node (the subtrahend) closer in value to the head.
+      node_DD.v <- append(node_DD.v, a) 
+      
+    } else { # Selects for a head node that precedes the child node.
+      # p.holder.v <- (heads.v[k] + p.holder.v) - ids.v[k] # Effectively moves head node (the minuend) closer in value to the child.
+      
+      a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"]) # Effectively moves head node (the minuend) closer in value to the child.
+      
+      
+      node_DD.v <- append(node_DD.v, a)
+      
+      
+    }
+    
+  }
+  
+  return(abs(node_DD.v))
+  
+} # end of DD_calculation() function.
+
+```
+
+* **abs_DD_calculation( )** returns a named numeric vector giving the absolute value of the Dependency Distance for the input word. This function differs from **DD_calculation( )** in that **DD_calculation( )** returns negative as well as positive value, and also lumps together values less than -6 as "LT-6" and those greater than 6 as "GT6". Because these composite value are strings and cannot be coerced to the numeric class, so the results of **DD_calculation( )** are character vectors.
+    + **word.v <- NULL** creates an empty vector to store logical values based on eligibility for dependency distance calculation.
+    + **word.v <- append(word.v, as.numeric(x["head"]) == 0)** adds a logical value to the end of the vector **word.v**. The value is TRUE if the target node has a head attribute with a value of 0. This step is meant to catch the sentence root, etc. which have no DD.
+        + **as.numeric(x["head"]) == 0** returns TRUE for a target element for which the head attribute is 0. The function **as.numeric** is necessary because the word attributes in the input sentences have been stored as character vectors. 
+        + **x["head"]** selects the subset consisting of the vector element with the name "head." This notation is possible because the data in the list object **sent_working** are stored in a named character vector. The variable **x** indicates whatever is passed into the function by the matrix code. Here, the words in **sent_working** passed in one at a time by the function **sapply.**
+        + **append( )** adds its second argument to its first argument. 
+    + **word.v <- append(word.v, x["relation"] == "AuxX")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxX", FALSE otherwise. AuxX is the annotation for commas with no dependencies.   
+    + **word.v <- append(word.v, x["relation"] == "AuxK")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxK", FALSE otherwise. AuxK is the annotation for sentence-final punctuation, which  have no dependencies. 
+    + ** word.v <- append(word.v, x["relation"] == "AuxG")** adds a logical value to **word.v**, TRUE if the relation attribute of the target word is "AuxG", FALSE otherwise. AuxG is the annotation for bracketing punctuation, which  have no dependencies. 
+    + **word.v <- append(word.v, substr(x["postag"], 1, 1) == "u")** adds a logical value TRUE to **word.v** if the postag value indicates that the target word is a punctuation mark, which usually do not have dependencies. This code is a redundancy, since punctuation marks ineligible for dependency distance should be caught by the preceding code checking the relation attribute.
+        + **substr(x["postag"], 1, 1)** returns the first character of the string with the name "postag".  The function **substr()** belongs to base R. Its first argument is the input string. The second argument is the index of the first character in the string to be returned. The third argument is the index of the last character in the string to be returned. Here, the character representing the part of speech is a one-letter long first element in the postag string. Thus, **1, 1** is passed to the function as second and third argument meaning: "return the first and only the first character of the input string."
+        + **substr(x["postag"], 1, 1) == "u"** returns TRUE if the first character of **x["postag"]** is "u", the symbol for a punctuation mark; otherwise it returns FALSE.
+    + **word.v <- append(word.v, "insertion_id" %in% names(x))** adds a logical value to **word.v**, TRUE if the target word is an ellipsis, FALSE otherwose. Dependency Distance should not be calculated for ellipses, since such words have no location in the linear order of a sentence.
+        + **"insertion_id" %in% names(x)** uses the **%in%** operator to return TRUE if the string "insertion_id" is among the names of the attributes of the target word; otherwise it returns FALSE. The **insertion_id** attribute appears only in words added through the ellipsis function of Arethusa.
+    + **word.v <- append(word.v, node.list\$Ellipsis[as.numeric(x["head"])])** adds a logical value to **word.v**, TRUE if the word indicated by the head attribute of the target word is an ellipsis. Words dependent on ellipses have no Dependency Distance.
+        + **as.numeric(x["head"])** returns the value for the head attribute of the target word and coreces it to a numeric vector.
+        + **node.list\$Ellipsis[...]** subsets the specified  element of the **Ellipsis** sublist in the **node.list** list object. This sublist contains a named logical vector with TRUE for an ellipsis, otherwise FALSE. This vector is created by the user-defined function **ellipsis_identification( )**, which has run earlier in the **j loop**. 
+        + **node_DD.v <- NULL** creates an empty vector to contain the Dependency Distance value for the target word. 
+    + The **if( ) { }** function controls the code which calculates the Dependency Distance.
+        + The argument **TRUE %in% word.v** uses the **%in%** operator to identify words that are not eligible for DD calculation. If any of the preceding code has added TRUE to the vector **word.v**, that word should not have a dependency distance.
+            + **node_DD.v <- NA** populates the vector **node_DD.v** with an NA element. NA is a logical constant which indicates "not applicable". 
+        + The  **else{ }** function applies the code block it contains to any word not meeting the criteria specified in its controlling **if( ) { }** function. Here it applies to all words eligible for Dependency Distance.   
+            + **b <-  length(seq(as.numeric(x["head"]), as.numeric(x["id"]))) - length(setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v))** populates the vector **b** with the number of punctuation marks between the target word and its head.
+                + **seq(as.numeric(x["head"]), as.numeric(x["id"]))** returns a sequence of integers beginning with the value of the head of the target word and ending with the id value of the target word itself. The function **seq( )** generates a sequence of numbers; the first argument is the number from which to start the sequence, the second the number with which to end it.  Here, both arguments are wrapped in **as.numeric( )** because the input data for the input word are stored in a character vector.
+                + **length(seq(as.numeric(x["head"]), as.numeric(x["id"])))** returns the cardinality of the vector containing the interval from the target word's head attribute value to the value of its id attrubute. The function **length( )** returns the cardinality of the input.
+                + **setdiff(seq(as.numeric(x["head"]), as.numeric(x["id"])), punct.index.v)** returns a vector containing the index values for the inclusive interval from the value of the target word's head attribute to the value of its id attribute, **excluding from the sequence the index values for punctuation marks.** The function **setdiff( )** returns the elements of its first argument which are not also in its second argument. Here, the second argument, **punct.index.v** is a vector of the id attribute values of the puntuation marks in the sentence. Punctuation marks occurring between and word and its head must not be affect the value of the word's dependency distance. Thus, **setdiff(..., punc.index.v)** eliminates the indices of punctuation from the interval passed to it as its first argument.
+                + **length(...) - length(...)** takes the number of elements in the inclusive interval from head to target word and subtracts from it the number of elements in the reduced interval (i.e., the same inclusive interval with the indices of punctuatin marks excluded). The result of the subtraction is the number of punctuation marks in the interval.
+            + The nested **if (as.numeric(x["head"]) > as.numeric(x["id"])) {...}** command controls for whether the head precedes or follows the target word. Different calculations are needed for each.  
+                + The argument **as.numeric(x["head"]) > as.numeric(x["id"])** selects the cases in which the head follows the target word. The two terms are compared by the greater than operator.
+                    + **a <- as.numeric(x["head"]) - (as.numeric(x["id"]) + b)** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the subtrahend (the id attribute value of the target). The effect of this step is to increase the subtrahend by the number of punctuation marks in the relevant interval, thus decreasing the Dependecny Distance by the same number.
+                    + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+              + The **else {...}** command selects for cases in which the target word follows the head.
+                  + **a <- (as.numeric(x["head"]) + b) - as.numeric(x["id"])** populates the vector **a** with the Dependency Distance of the target word. The vector **b** containing the number of punctuation marks between target word and its head is added to the minuend (the head value; the term to be subtracted from). The effect of this step is to increase the value of the result by the number of punctiation marks in the interval.  Because the result of the subtraction here is always negative, increasing the value results in a smaller negative number (i.e., a number of smaller absolute value) by moving it toward 0. 
+                 + **node_DD.v <- a ** populates vector **a** with the calculated DD value.
+    + **return(node_DD.v)** passes the Dependency Distance of the target word to the matrix code. 
+    
+    
+    
+    
+    
+```{r}
+
+populate_word_element <- function(x) {
+  y <- as.numeric(x["id"])
+  word.xml <- xmlNode("word") # create word xml node
+  
+  if (node.list$Ellipsis[y] == FALSE) {
+    
+    word.xml <- addAttributes(word.xml, id = x["id"], form = x["form"], lemma = x["lemma"], postag = x["postag"],
+                              relation = x["relation"], head = x["head"], cite = x["cite"], 
+                              Subtree = node.list$Subtree[y],
+                              DepDist = node.list$DepDist[y],
+                              Neighborhood = node.list$Neighborhood[y],
+                              Degree = node.list$Degree[y])
+    
+  } else {
+    
+    word.xml <- addAttributes(word.xml, id = x["id"], form = x["form"], lemma = x["lemma"], postag = x["postag"],
+                              relation = x["relation"], head = x["head"], cite = x["cite"], insertion_id = x["insertion_id"],
+                              artificial = x["artificial"], 
+                              Subtree = node.list$Subtree[y],
+                              DepDist = node.list$DepDist[y],
+                              Neighborhood = node.list$Neighborhood[y],
+                              Degree = node.list$Degree[y])
+    
+  }
+  
+  return(word.xml)
+}
+
+
+```
+
+* **populate_word_element( )** returns and XML node containing the original attributes from the target node in the input file and also the new attributes generated by this script.
+    + **y <- as.numeric(x["id"])** returns a numeric vector of length 1 containing the value of the target word's id attribute.  This value will be used to index **node.list** to select new attributes for the target node.
+    + **word.xml <- xmlNode("word")** creates an XML node object, **word.xml**. The XML package function **xmlNode( )** takes as its argument the name of the resulting XML node in the XML structure (here "word").
+    + **if (node.list$Ellipsis[y] == FALSE) {...]** selects for an input token that is not an ellipsis. This step is necessary because in the original input file ellipsis nodes have a slightly different set of attributes than regular tokens. If the element of the appropriate element in the **Ellipsis** vector in **node.list**  is FALSE, the input is not an ellipsis and the indicated code block is applied.
+        + **word.xml <- addAttributes(word.xml, id = x["id"], form = x["form"], ...** populates **word.xml** with the attributes given as arguments to the **addAttributes( )** function from the XML package.
+            + **addAttributes( )** takes as its first argument the XML node to which the attributes are to be appended. Subsequent arguments give the attributes to be added. These arguments take the form NAME = VALUE; thus, **id = x["id"]** creates an attribute called "id" and assigns to it the value of the id attribute of the input token **x**.
+   + **else {...}** selects for an input node that is an ellipsis and applies the specified code block.
+        + **word.xml <- addAttributes(word.xml, id = x["id"], form = x["form"], ...** populates **word.xml** with the attributes given as arguments to the **addAttributes( )** function from the XML package. The attributes as the same as for the non-ellipsis node with the following additions.
+            + **insertion_id = x["insertion_id"]** and **artificial = x["artificial"]:** both attribute types are specific to ellipses.
+    + **return(word.xml)** passes the populated XML node to the matrix code.  
+    
+    
+### End of User-Defined Functions for XML Attributes
+
+***
+***
+***
+
+### XSLT Script to Expand Morphology Abbreviations and Link Multiple Syntactic "Generations"
+
+```{r eval = FALSE}
+
+# Note that this is not R code. It is XSLT and should be treated appropriately.
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    exclude-result-prefixes="xs"
+    version="2.0">
+    
+    <xsl:output method="xml" indent="yes"/>
+    
+    
+    <xsl:template match="node() | @*">
+        <xsl:copy>
+            <xsl:apply-templates select="node() | @*"/>
+        </xsl:copy>
+    </xsl:template>
+    
+    <xsl:template match="word[not(@lemma)]">
+        <word>
+            <xsl:attribute name="lemma">NA</xsl:attribute>
+            <xsl:copy-of select="@*"/>
+        </word>
+    </xsl:template>
+    
+    <xsl:template match="word[not(@postag)]">
+        <word>
+            <xsl:attribute name="postag">NA</xsl:attribute>
+            <xsl:copy-of select="@*"/>
+        </word>
+    </xsl:template>
+    
+    <xsl:template match="word[not(@form)]">
+        <word>
+            <xsl:attribute name="form">NA</xsl:attribute>
+            <xsl:copy-of select="@*"/>
+        </word>
+    </xsl:template>
+    
+    <xsl:template match="word">
+        
+        <xsl:variable name="pos" select="substring(./@postag, 1, 1)"/>
+        <xsl:variable name="person" select="substring(./@postag, 2, 1)"/>
+        <xsl:variable name="number" select="substring(./@postag, 3, 1)"/>
+        <xsl:variable name="tense" select="substring(./@postag, 4, 1)"/>
+        <xsl:variable name="mood" select="substring(./@postag, 5, 1)"/>
+        <xsl:variable name="voice" select="substring(./@postag, 6, 1)"/>
+        <xsl:variable name="gender" select="substring(./@postag, 7, 1)"/>
+        <xsl:variable name="case" select="substring(./@postag, 8, 1)"/>
+        <xsl:variable name="degree" select="substring(./@postag, 9, 1)"/>
+        
+        <word>
+            <xsl:copy-of select="@*"/>
+            <xsl:attribute name="self-relation"><xsl:value-of select="./@relation"/></xsl:attribute>
+            <xsl:attribute name="self-depdist"><xsl:value-of select="./@DepDist"/></xsl:attribute>
+            <xsl:attribute name="self-vertexDegree"><xsl:value-of select="./@Degree"/></xsl:attribute>
+            
+            
+            <xsl:choose>
+                <xsl:when test="$pos='d'">
+                    <xsl:attribute name="self-morph-pos">adverb</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='r'">
+                    <xsl:attribute name="self-morph-pos">preposition</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='l'">
+                    <xsl:attribute name="self-morph-pos">article</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='v'">
+                    <xsl:attribute name="self-morph-pos">verb</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='a'">
+                    <xsl:attribute name="self-morph-pos">adjective</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='p'">
+                    <xsl:attribute name="self-morph-pos">pronoun</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='n'">
+                    <xsl:attribute name="self-morph-pos">noun</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='c'">
+                    <xsl:attribute name="self-morph-pos">conjunction</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$pos='u'">
+                    <xsl:attribute name="self-morph-pos">punctuation</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-pos">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$person='1'">
+                    <xsl:attribute name="self-morph-person">firstPerson</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$person='2'">
+                    <xsl:attribute name="self-morph-person">secondPerson</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$person='3'">
+                    <xsl:attribute name="self-morph-person">thirdPerson</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-person">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$number='s'">
+                    <xsl:attribute name="self-morph-number">singular</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$number='p'">
+                    <xsl:attribute name="self-morph-number">plural</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$number='d'">
+                    <xsl:attribute name="self-morph-number">dual</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-number">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$tense='p'">
+                    <xsl:attribute name="self-morph-tense">present</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='i'">
+                    <xsl:attribute name="self-morph-tense">imperfect</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='a'">
+                    <xsl:attribute name="self-morph-tense">aorist</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='r'">
+                    <xsl:attribute name="self-morph-tense">perfect</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='l'">
+                    <xsl:attribute name="self-morph-tense">pluperfect</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='f'">
+                    <xsl:attribute name="self-morph-tense">future</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$tense='t'">
+                    <xsl:attribute name="self-morph-tense">futurePerfect</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-tense">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$mood='i'">
+                    <xsl:attribute name="self-morph-mood">indicative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$mood='s'">
+                    <xsl:attribute name="self-morph-mood">subjunctive</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$mood='o'">
+                    <xsl:attribute name="self-morph-mood">optative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$mood='n'">
+                    <xsl:attribute name="self-morph-mood">infinitive</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$mood='p'">
+                    <xsl:attribute name="self-morph-mood">participle</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$mood='m'">
+                    <xsl:attribute name="self-morph-mood">imperative</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-mood">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$voice='a'">
+                    <xsl:attribute name="self-morph-voice">active</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$voice='p'">
+                    <xsl:attribute name="self-morph-voice">passive</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$voice='m'">
+                    <xsl:attribute name="self-morph-voice">middle</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$voice='e'">
+                    <xsl:attribute name="self-morph-voice">deponent</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-voice">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$gender='m'">
+                    <xsl:attribute name="self-morph-gender">masculine</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$gender='f'">
+                    <xsl:attribute name="self-morph-gender">feminine</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$gender='n'">
+                    <xsl:attribute name="self-morph-gender">neuter</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-gender">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$case='n'">
+                    <xsl:attribute name="self-morph-case">nominative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$case='g'">
+                    <xsl:attribute name="self-morph-case">genitive</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$case='d'">
+                    <xsl:attribute name="self-morph-case">dative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$case='a'">
+                    <xsl:attribute name="self-morph-case">accusative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$case='b'">
+                    <xsl:attribute name="self-morph-case">ablative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$case='v'">
+                    <xsl:attribute name="self-morph-case">vocative</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-case">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:choose>
+                <xsl:when test="$degree='p'">
+                    <xsl:attribute name="self-morph-degree">positive</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$degree='c'">
+                    <xsl:attribute name="self-morph-degree">comparative</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$degree='s'">
+                    <xsl:attribute name="self-morph-degree">superlative</xsl:attribute>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="self-morph-degree">NA</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            <xsl:variable name="parent_id" select="./@head"/>
+            
+            <xsl:variable name="parent-pos" select="substring(../word[@id = $parent_id]/@postag, 1, 1)"/>
+            <xsl:variable name="parent-person" select="substring(../word[@id = $parent_id]/@postag, 2, 1)"/>
+            <xsl:variable name="parent-number" select="substring(../word[@id = $parent_id]/@postag, 3, 1)"/>
+            <xsl:variable name="parent-tense" select="substring(../word[@id = $parent_id]/@postag, 4, 1)"/>
+            <xsl:variable name="parent-mood" select="substring(../word[@id = $parent_id]/@postag, 5, 1)"/>
+            <xsl:variable name="parent-voice" select="substring(../word[@id = $parent_id]/@postag, 6, 1)"/>
+            <xsl:variable name="parent-gender" select="substring(../word[@id = $parent_id]/@postag, 7, 1)"/>
+            <xsl:variable name="parent-case" select="substring(../word[@id = $parent_id]/@postag, 8, 1)"/>
+            <xsl:variable name="parent-degree" select="substring(../word[@id = $parent_id]/@postag, 9, 1)"/>
+            
+            <xsl:choose>
+                <xsl:when test="$parent_id = 0">
+                    <xsl:attribute name="parent-relation">root</xsl:attribute>
+                    <xsl:attribute name="parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-vertexDegree">NULL</xsl:attribute>
+                    
+                    
+                    
+                    
+                    <xsl:attribute name="parent-morph-pos">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-person">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-number">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-tense">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-mood">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-voice">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-gender">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-case">NULL</xsl:attribute>
+                    <xsl:attribute name="parent-morph-degree">NULL</xsl:attribute>
+                    
+                </xsl:when>
+                <xsl:when test="$parent_id > 0">
+                    <xsl:attribute name="parent-relation"><xsl:value-of select="../word[@id = $parent_id]/@relation"/></xsl:attribute>
+                    <xsl:attribute name="parent-depdist"><xsl:value-of select="../word[@id = $parent_id]/@DepDist"/></xsl:attribute>
+                    <xsl:attribute name="parent-vertexDegree"><xsl:value-of select="../word[@id = $parent_id]/@Degree"/></xsl:attribute>
+                                        
+                    <xsl:choose>
+                        <xsl:when test="$parent-pos='d'">
+                            <xsl:attribute name="parent-morph-pos">adverb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='r'">
+                            <xsl:attribute name="parent-morph-pos">preposition</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='l'">
+                            <xsl:attribute name="parent-morph-pos">article</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='v'">
+                            <xsl:attribute name="parent-morph-pos">verb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='a'">
+                            <xsl:attribute name="parent-morph-pos">adjective</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='p'">
+                            <xsl:attribute name="parent-morph-pos">pronoun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='n'">
+                            <xsl:attribute name="parent-morph-pos">noun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='c'">
+                            <xsl:attribute name="parent-morph-pos">conjunction</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-pos='u'">
+                            <xsl:attribute name="parent-morph-pos">punctuation</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-pos">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-person='1'">
+                            <xsl:attribute name="parent-morph-person">firstPerson</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-person='2'">
+                            <xsl:attribute name="parent-morph-person">secondPerson</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-person='3'">
+                            <xsl:attribute name="parent-morph-person">thirdPerson</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-person">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-number='s'">
+                            <xsl:attribute name="parent-morph-number">singular</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-number='p'">
+                            <xsl:attribute name="parent-morph-number">plural</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-number='d'">
+                            <xsl:attribute name="parent-morph-number">dual</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-number">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-tense='p'">
+                            <xsl:attribute name="parent-morph-tense">present</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='i'">
+                            <xsl:attribute name="parent-morph-tense">imperfect</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='a'">
+                            <xsl:attribute name="parent-morph-tense">aorist</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='r'">
+                            <xsl:attribute name="parent-morph-tense">perfect</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='l'">
+                            <xsl:attribute name="parent-morph-tense">pluperfect</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='f'">
+                            <xsl:attribute name="parent-morph-tense">future</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-tense='t'">
+                            <xsl:attribute name="parent-morph-tense">futurePerfect</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-tense">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-mood='i'">
+                            <xsl:attribute name="parent-morph-mood">indicative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-mood='s'">
+                            <xsl:attribute name="parent-morph-mood">subjunctive</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-mood='o'">
+                            <xsl:attribute name="parent-morph-mood">optative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-mood='n'">
+                            <xsl:attribute name="parent-morph-mood">infinitive</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-mood='p'">
+                            <xsl:attribute name="parent-morph-mood">participle</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-mood='m'">
+                            <xsl:attribute name="parent-morph-mood">imperative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-mood">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-voice='a'">
+                            <xsl:attribute name="parent-morph-voice">active</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-voice='p'">
+                            <xsl:attribute name="parent-morph-voice">passive</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-voice='m'">
+                            <xsl:attribute name="parent-morph-voice">middle</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-voice='e'">
+                            <xsl:attribute name="parent-morph-voice">deponent</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-voice">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-gender='m'">
+                            <xsl:attribute name="parent-morph-gender">masculine</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-gender='f'">
+                            <xsl:attribute name="parent-morph-gender">feminine</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-gender='n'">
+                            <xsl:attribute name="parent-morph-gender">neuter</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-gender">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-case='n'">
+                            <xsl:attribute name="parent-morph-case">nominative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-case='g'">
+                            <xsl:attribute name="parent-morph-case">genitive</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-case='d'">
+                            <xsl:attribute name="parent-morph-case">dative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-case='a'">
+                            <xsl:attribute name="parent-morph-case">accusative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-case='b'">
+                            <xsl:attribute name="parent-morph-case">ablative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-case='v'">
+                            <xsl:attribute name="parent-morph-case">vocative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-case">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$parent-degree='p'">
+                            <xsl:attribute name="parent-morph-degree">positive</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-degree='c'">
+                            <xsl:attribute name="parent-morph-degree">comparative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$parent-degree='s'">
+                            <xsl:attribute name="parent-morph-degree">superlative</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="parent-morph-degree">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                </xsl:when>
+                
+            </xsl:choose>
+           
+            
+            
+            <xsl:variable name="g1-parent_id"
+                select="parent::sentence/word[@id = $parent_id]/@head"/>
+            
+            <xsl:variable name="g1-parent-pos" select="substring(../word[@id = $g1-parent_id]/@postag, 1, 1)"/>
+            <xsl:variable name="g1-parent-person" select="substring(../word[@id = $g1-parent_id]/@postag, 2, 1)"/>
+            <xsl:variable name="g1-parent-number" select="substring(../word[@id = $g1-parent_id]/@postag, 3, 1)"/>
+            <xsl:variable name="g1-parent-tense" select="substring(../word[@id = $g1-parent_id]/@postag, 4, 1)"/>
+            <xsl:variable name="g1-parent-mood" select="substring(../word[@id = $g1-parent_id]/@postag, 5, 1)"/>
+            <xsl:variable name="g1-parent-voice" select="substring(../word[@id = $g1-parent_id]/@postag, 6, 1)"/>
+            <xsl:variable name="g1-parent-gender" select="substring(../word[@id = $g1-parent_id]/@postag, 7, 1)"/>
+            <xsl:variable name="g1-parent-case" select="substring(../word[@id = $g1-parent_id]/@postag, 8, 1)"/>
+            <xsl:variable name="g1-parent-degree" select="substring(../word[@id = $g1-parent_id]/@postag, 9, 1)"/>
+            
+            
+            
+            
+            
+            
+            
+                      
+             <xsl:choose>
+                 <xsl:when test="$g1-parent_id = 0">
+                     <xsl:attribute name="g1-parent-relation">root</xsl:attribute>
+                     <xsl:attribute name="g1-parent-depdist">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-vertexDegree">NULL</xsl:attribute>
+                     
+                                          
+                     <xsl:attribute name="g1-parent-morph-pos">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-person">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-number">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-tense">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-mood">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-voice">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-gender">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-case">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-degree">NULL</xsl:attribute>
+                     
+                     
+                 </xsl:when>
+                 <xsl:when test="$g1-parent_id > 0">
+                     <xsl:attribute name="g1-parent-relation"><xsl:value-of select="../word[@id = $g1-parent_id]/@relation"/></xsl:attribute>
+                     <xsl:attribute name="g1-parent-depdist"><xsl:value-of select="../word[@id = $g1-parent_id]/@DepDist"/></xsl:attribute>
+                     <xsl:attribute name="g1-parent-vertexDegree"><xsl:value-of select="../word[@id = $g1-parent_id]/@Degree"/></xsl:attribute>
+                     
+                                          
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-pos='d'">
+                             <xsl:attribute name="g1-parent-morph-pos">adverb</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='r'">
+                             <xsl:attribute name="g1-parent-morph-pos">preposition</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='l'">
+                             <xsl:attribute name="g1-parent-morph-pos">article</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='v'">
+                             <xsl:attribute name="g1-parent-morph-pos">verb</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='a'">
+                             <xsl:attribute name="g1-parent-morph-pos">adjective</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='p'">
+                             <xsl:attribute name="g1-parent-morph-pos">pronoun</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='n'">
+                             <xsl:attribute name="g1-parent-morph-pos">noun</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='c'">
+                             <xsl:attribute name="g1-parent-morph-pos">conjunction</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-pos='u'">
+                             <xsl:attribute name="g1-parent-morph-pos">punctuation</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-pos">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     
+                         
+                             <xsl:choose>
+                                 <xsl:when test="$g1-parent-person='1'">
+                                     <xsl:attribute name="g1-parent-morph-person">firstPerson</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-person='2'">
+                                     <xsl:attribute name="g1-parent-morph-person">secondPerson</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-person='3'">
+                                     <xsl:attribute name="g1-parent-morph-person">thirdPerson</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:otherwise>
+                                     <xsl:attribute name="g1-parent-morph-person">NA</xsl:attribute>
+                                 
+                                 </xsl:otherwise>
+                             </xsl:choose>
+                     
+                     
+                     
+                             <xsl:choose>
+                                 <xsl:when test="$g1-parent-number='s'">
+                                     <xsl:attribute name="g1-parent-morph-number">singular</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-number='p'">
+                                     <xsl:attribute name="g1-parent-morph-number">plural</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-number='d'">
+                                     <xsl:attribute name="g1-parent-morph-number">dual</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:otherwise>
+                                     <xsl:attribute name="g1-parent-morph-number">NA</xsl:attribute>
+                                 </xsl:otherwise>
+                             </xsl:choose>
+                             
+                    
+                         
+                             <xsl:choose>
+                                 <xsl:when test="$g1-parent-tense='p'">
+                                     <xsl:attribute name="g1-parent-morph-tense">present</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='i'">
+                                     <xsl:attribute name="g1-parent-morph-tense">imperfect</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='a'">
+                                     <xsl:attribute name="g1-parent-morph-tense">aorist</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='r'">
+                                     <xsl:attribute name="g1-parent-morph-tense">perfect</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='l'">
+                                     <xsl:attribute name="g1-parent-morph-tense">pluperfect</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='f'">
+                                     <xsl:attribute name="g1-parent-morph-tense">future</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:when test="$g1-parent-tense='t'">
+                                     <xsl:attribute name="g1-parent-morph-tense">futurePerfect</xsl:attribute>
+                                 </xsl:when>
+                                 <xsl:otherwise>
+                                     <xsl:attribute name="g1-parent-morph-tense">NA</xsl:attribute>
+                                 </xsl:otherwise>
+                             </xsl:choose>
+                     
+                     
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-mood='i'">
+                             <xsl:attribute name="g1-parent-morph-mood">indicative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-mood='s'">
+                             <xsl:attribute name="g1-parent-morph-mood">subjunctive</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-mood='o'">
+                             <xsl:attribute name="g1-parent-morph-mood">optative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-mood='n'">
+                             <xsl:attribute name="g1-parent-morph-mood">infinitive</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-mood='p'">
+                             <xsl:attribute name="g1-parent-morph-mood">participle</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-mood='m'">
+                             <xsl:attribute name="g1-parent-morph-mood">imperative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-mood">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-voice='a'">
+                             <xsl:attribute name="g1-parent-morph-voice">active</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-voice='p'">
+                             <xsl:attribute name="g1-parent-morph-voice">passive</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-voice='m'">
+                             <xsl:attribute name="g1-parent-morph-voice">middle</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-voice='e'">
+                             <xsl:attribute name="g1-parent-morph-voice">deponent</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-voice">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-gender='m'">
+                             <xsl:attribute name="g1-parent-morph-gender">masculine</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-gender='f'">
+                             <xsl:attribute name="g1-parent-morph-gender">feminine</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-gender='n'">
+                             <xsl:attribute name="g1-parent-morph-gender">neuter</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-gender">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-case='n'">
+                             <xsl:attribute name="g1-parent-morph-case">nominative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-case='g'">
+                             <xsl:attribute name="g1-parent-morph-case">genitive</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-case='d'">
+                             <xsl:attribute name="g1-parent-morph-case">dative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-case='a'">
+                             <xsl:attribute name="g1-parent-morph-case">accusative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-case='b'">
+                             <xsl:attribute name="g1-parent-morph-case">ablative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-case='v'">
+                             <xsl:attribute name="g1-parent-morph-case">vocative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-case">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     <xsl:choose>
+                         <xsl:when test="$g1-parent-degree='p'">
+                             <xsl:attribute name="g1-parent-morph-degree">positive</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-degree='c'">
+                             <xsl:attribute name="g1-parent-morph-degree">comparative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:when test="$g1-parent-degree='s'">
+                             <xsl:attribute name="g1-parent-morph-degree">superlative</xsl:attribute>
+                         </xsl:when>
+                         <xsl:otherwise>
+                             <xsl:attribute name="g1-parent-morph-degree">NA</xsl:attribute>
+                         </xsl:otherwise>
+                     </xsl:choose>
+                     
+                     
+                     
+                 </xsl:when>
+                 <xsl:otherwise>
+                     <xsl:attribute name="g1-parent-relation">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-depdist">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-vertexDegree">NULL</xsl:attribute>
+                     
+                                          
+                     <xsl:attribute name="g1-parent-morph-pos">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-person">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-number">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-tense">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-mood">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-voice">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-gender">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-case">NULL</xsl:attribute>
+                     <xsl:attribute name="g1-parent-morph-degree">NULL</xsl:attribute>
+                 </xsl:otherwise>
+                 
+                 
+             </xsl:choose>
+            
+            
+           
+            
+            
+            
+            
+            <xsl:variable name="g2-parent_id"
+                select="parent::sentence/word[@id = $g1-parent_id]/@head"/>
+            <xsl:variable name="g2-parent-pos" select="substring(../word[@id = $g2-parent_id]/@postag, 1, 1)"/>
+            
+            
+           
+            
+            
+            <xsl:choose>
+                <xsl:when test="$g2-parent_id = 0">
+                    <xsl:attribute name="g2-parent-relation">root</xsl:attribute>
+                    <xsl:attribute name="g2-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$g2-parent_id > 0">
+                    <xsl:attribute name="g2-parent-relation"><xsl:value-of select="../word[@id = $g2-parent_id]/@relation"/></xsl:attribute>
+                    <xsl:attribute name="g2-parent-depdist"><xsl:value-of select="../word[@id = $g2-parent_id]/@DepDist"/></xsl:attribute>
+                    <xsl:attribute name="g2-parent-vertexDegree"><xsl:value-of select="../word[@id = $g2-parent_id]/@Degree"/></xsl:attribute>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$g2-parent-pos='d'">
+                            <xsl:attribute name="g2-parent-morph-pos">adverb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='r'">
+                            <xsl:attribute name="g2-parent-morph-pos">preposition</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='l'">
+                            <xsl:attribute name="g2-parent-morph-pos">article</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='v'">
+                            <xsl:attribute name="g2-parent-morph-pos">verb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='a'">
+                            <xsl:attribute name="g2-parent-morph-pos">adjective</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='p'">
+                            <xsl:attribute name="g2-parent-morph-pos">pronoun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='n'">
+                            <xsl:attribute name="g2-parent-morph-pos">noun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='c'">
+                            <xsl:attribute name="g2-parent-morph-pos">conjunction</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='u'">
+                            <xsl:attribute name="g2-parent-morph-pos">punctuation</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="g2-parent-morph-pos">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>    
+                    
+                    
+                   
+                    
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="g2-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g2-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            
+            
+            
+            <xsl:variable name="g3-parent_id"
+                select="parent::sentence/word[@id = $g2-parent_id]/@head"/>
+            <xsl:variable name="g3-parent-pos" select="substring(../word[@id = $g3-parent_id]/@postag, 1, 1)"/>
+            
+            
+            <xsl:choose>
+                <xsl:when test="$g3-parent_id = 0">
+                    <xsl:attribute name="g3-parent-relation">root</xsl:attribute>
+                    <xsl:attribute name="g3-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$g3-parent_id > 0">
+                    <xsl:attribute name="g3-parent-relation"><xsl:value-of select="../word[@id = $g3-parent_id]/@relation"/></xsl:attribute>
+                    <xsl:attribute name="g3-parent-depdist"><xsl:value-of select="../word[@id = $g3-parent_id]/@DepDist"/></xsl:attribute>
+                    <xsl:attribute name="g3-parent-vertexDegree"><xsl:value-of select="../word[@id = $g3-parent_id]/@Degree"/></xsl:attribute>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$g3-parent-pos='d'">
+                            <xsl:attribute name="g3-parent-morph-pos">adverb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='r'">
+                            <xsl:attribute name="g3-parent-morph-pos">preposition</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='l'">
+                            <xsl:attribute name="g3-parent-morph-pos">article</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='v'">
+                            <xsl:attribute name="g3-parent-morph-pos">verb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='a'">
+                            <xsl:attribute name="g3-parent-morph-pos">adjective</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='p'">
+                            <xsl:attribute name="g3-parent-morph-pos">pronoun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='n'">
+                            <xsl:attribute name="g3-parent-morph-pos">noun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g3-parent-pos='c'">
+                            <xsl:attribute name="g3-parent-morph-pos">conjunction</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g2-parent-pos='u'">
+                            <xsl:attribute name="g3-parent-morph-pos">punctuation</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="g3-parent-morph-pos">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+               
+                    
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="g3-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g3-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            
+            <xsl:variable name="g4-parent_id"
+                select="parent::sentence/word[@id = $g3-parent_id]/@head"/>
+            <xsl:variable name="g4-parent-pos" select="substring(../word[@id = $g4-parent_id]/@postag, 1, 1)"/>
+            
+            
+            <xsl:choose>
+                <xsl:when test="$g4-parent_id = 0">
+                    <xsl:attribute name="g4-parent-relation">root</xsl:attribute>
+                    <xsl:attribute name="g4-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:when>
+                <xsl:when test="$g4-parent_id > 0">
+                    <xsl:attribute name="g4-parent-relation"><xsl:value-of select="../word[@id = $g4-parent_id]/@relation"/></xsl:attribute>
+                    <xsl:attribute name="g4-parent-depdist"><xsl:value-of select="../word[@id = $g4-parent_id]/@DepDist"/></xsl:attribute>
+                    <xsl:attribute name="g4-parent-vertexDegree"><xsl:value-of select="../word[@id = $g4-parent_id]/@Degree"/></xsl:attribute>
+                    
+                    <xsl:choose>
+                        <xsl:when test="$g4-parent-pos='r'">
+                            <xsl:attribute name="g4-parent-morph-pos">preposition</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='d'">
+                            <xsl:attribute name="g4-parent-morph-pos">adverb</xsl:attribute>
+                        </xsl:when>                        
+                        <xsl:when test="$g4-parent-pos='l'">
+                            <xsl:attribute name="g4-parent-morph-pos">article</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='v'">
+                            <xsl:attribute name="g4-parent-morph-pos">verb</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='a'">
+                            <xsl:attribute name="g4-parent-morph-pos">adjective</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='p'">
+                            <xsl:attribute name="g4-parent-morph-pos">pronoun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='n'">
+                            <xsl:attribute name="g4-parent-morph-pos">noun</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='c'">
+                            <xsl:attribute name="g4-parent-morph-pos">conjunction</xsl:attribute>
+                        </xsl:when>
+                        <xsl:when test="$g4-parent-pos='u'">
+                            <xsl:attribute name="g4-parent-morph-pos">punctuation</xsl:attribute>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:attribute name="g4-parent-morph-pos">NA</xsl:attribute>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    
+                    
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:attribute name="g4-parent-relation">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-depdist">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-vertexDegree">NULL</xsl:attribute>
+                    <xsl:attribute name="g4-parent-morph-pos">NULL</xsl:attribute>
+                </xsl:otherwise>
+            </xsl:choose>
+            
+            
+            
+        </word>
+    </xsl:template>
+    
+</xsl:stylesheet>
+
+```
+
+##### Note: in these comments open and closing angle brackets are omitted.
+
+* The purpose of this XSLT script is to: 
+    + extract input attribute values and give these values to new attributes with names that will be easier to distinguish in subsequent stages of the process 
+    + expand morphology annotation to an easily readable form
+    + add attributes representing the releavnt features of the syntactic ancestors of each word.
+    
+* **xsl:output method="xml" indent="yes"** sets the output of the XSLT to produce and XML file with  indentations according to hierarchical structure for clarity.
+
+* **xsl:template match="node() | @*"** introduces the identity transformation. This line uses wild card symbols as arguments to the **match=""** argument; the wild cards apply this template to the XML root, whatever thay may be. 
+    + **xsl:copy** performs a shallow copy. This term means that this command copies only the node refered to in the template **match** attribute; it does not copy attributes or child elements. Without further modification, this template would copy only the root element of the file.
+        + **xsl:apply-templates select="node() | @*"** identifies a set of attributes and nodes as specified in the command's **select** attribute. It then looks for templates whose **match** attribute refers to members of that set and applies the appropriate template. Here, the **select** attribute is set, using wild cards, to all nodes and all attributes. Because the **match** attribute for the identity transformation itself is in the set defined by **select**, the **xsl:copy** command in the identity transformation is applied recursively to all descendant nodes of the root and all attributes.
+        + **xsl:apply-templates** applies matched templates in such a way that the output is changed as directed and other input is passed on unchanged.
+
+* **xsl:template match="word[not(@lemma)]"** is a template to handle word elements lacking the **lemma** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **lemma** attribute will break a later stage of the code.
+    + **match="word[not(@lemma)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@lemma)]** means "where it is not the case that the attribute lemma exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="lemma"** creates for the word element a new attribute named **lemma**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+
+
+* **xsl:template match="word[not(@postag)]"** is a template to handle word elements lacking the **postag** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **postag** attribute will break a later stage of the code.
+    + **match="word[not(@postag)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@postag)]** means "where it is not the case that the attribute postag exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="postag"** creates for the word element a new attribute named **postag**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+     
+     
+     
+* **xsl:template match="word[not(@form)]"** is a template to handle word elements lacking the **form** attribute entirely (not just a missing value). Some older treebank files have such incomplete elements as the result of ellipsis. A missing **form** attribute will break a later stage of the code.
+    + **match="word[not(@form)]"** uses the index brackets **[...]** to specify particular word elements. The desired selection is given using the XQuery **not(  ) function**. The expression **[not(@form)]** means "where it is not the case that the attribute form exists." 
+    + **&lt;word&gt;** creates a new word element.
+        + **xsl:attribute name="form"** creates for the word element a new attribute named **form**. It is populated by the value **NA**.
+        + **xsl:copy-of select="@\*"** implements a deep copy, duplicating all attributes and nodes indicated by the **select** attribute. Here wild cards select all attributes of the input element.
+
+
+ 
+ 
+* **xsl:template match="word"** is a template to create new attribute to serve as variables for author analysis. This template will apply to all word elements not specified in the preceding templates. The first step is to set up a series of variables to be used to create the desired attributes.
+    + **xsl:variable name="pos" select="substring(./@postag, 1, 1)"** creates a variable named **pos** and populates it with a letter indicating the part of speech of the current word element.
+        + **select="substring(./@postag, 1, 1)** assigns the value of the variable. The XQuery function **substring( )** returns the segment of a string indicated by its arguments.
+            + The first argument specifies the input string, here **./@postag** indicating the value of the **postag** attribute of the current word element. The second argument specifies the position of the string at which to begin extraction.  The third argument specifies the length of the string to be extracted. Thus, the arguments **1, 1** return the first character in the **postag** attribute, which is the symbol for part of speech.
+    + **xsl:variable name="person" select="substring(./@postag, 2, 1)"** creates a variable named **person** and populates it with a letter indicating the grammatical person of the current word element.
+    + **xsl:variable name="number" select="substring(./@postag, 3, 1)"** creates a variable named **number** and populates it with a letter indicating the grammatical number of the current word element.
+    + **xsl:variable name="tense" select="substring(./@postag, 4, 1)"** creates a variable named **tense** and populates it with a letter indicating the grammatical tense of the current word element.
+    + **xsl:variable name="mood" select="substring(./@postag, 5, 1)"** creates a variable named **mood** and populates it with a letter indicating the grammatical mood of the current word element.
+    + **xsl:variable name="voice" select="substring(./@postag, 6, 1)"** creates a variable named **mood** and populates it with a letter indicating the grammatical mood of the current word element.
+    + **xsl:variable name="gender" select="substring(./@postag, 7, 1)"** creates a variable named **gender** and populates it with a letter indicating the grammatical gender of the current word element.
+    + **xsl:variable name="case" select="substring(./@postag, 8, 1)"** creates a variable named **case** and populates it with a letter indicating the grammatical case of the current word element.
+    + **xsl:variable name="degree" select="substring(./@postag, 9, 1)"** creates a variable named **degree** and populates it with a letter indicating the grammatical degree of the current word element.
+    
+### Note that no single word has a value in all grammatical categories indicated by these variables.  However,  it is assumed to be more efficient to apply all categories to all words than to write separate code for each part of speech.  Inapplicable variables can be weeded out later in the process. 
+ 
+ 
+ + **&lt;word&gt;** creates a word element to be populated be the nested code.
+ 
+ 
+       + **xsl:copy-of select="@\*"** replicates all attributes in the input node.
+       + **xsl:attribute name="self-relation** creates an attribute named "self-relation" to store the value of the **relation** attribute of the input node.
+           + **xsl:value-of select="./@relation"** returns the value of the expression specified in the **select** attribute. Here, **.** indicates the current node and **/@relation** indicates the attribute named "relation."
+       + **xsl:attribute name="self-depdist"** creates an attribute named "self-depdist" to store the dependency distance of the input node.
+           + **xsl:value-of select="./@DepDist"/** returns the value of the **DepDist** attribute of the input node.
+       + **xsl:attribute name="self-vertexDegree"** creates an attribute named "self-vertexDegree" to store the vertex degree of the input node.
+           + **xsl:value-of select="./@Degree"** returns the value of the **Degree** attribute of the input node.
+       
+       
+       
+       + **xsl:choose** applies one or more condition tests as specified in nested nodes. The **choose** element in analogous to the **if ( ) {...}** command in R and similar languages.
+           + **xsl:when test="&#36;pos='d'"** specifies a condition (there may be more than one condition) for the matrix **choose** element. The condition is specified through the value of the expression in the **test** attribute. Here, the test is set to **&#36;pos='d'**.  This **when** element returns TRUE when the value of the **pos** variable is "**d**", the symbol for **adverb** in the AGLDT (Ancient Greek and Latin Dependency Treebank).
+             + **xsl:attribute name="self-morph-pos"** creates an attribute in the matrix word element with the name indicated in the **name** attribute. Here, the name is **self-morph-pos**. This kind of extended name was chosen to help disambiguate the new variables created in our study. For example, "self" makes it immediately clear that this value belongs to the target word and not to an ancestor or descendant. Likewise, "morph" makes it clear that, for example, "degree" is used in the morphological sense used in the comparision of adjectives and adverbs, not in the sense common in the study of graphs.
+                 + The value of the **name** attribute is given by the nested text string, here **"adverb**.
+          + **xsl:when test="&#36;pos='r'"** returns TRUE when the value of the **pos** variable is "**r**", the symbol for **preposition** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='l'"** returns TRUE when the value of the **pos** variable is "**l**", the symbol for **definite article** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+          + **xsl:when test="&#36;pos='v'"** returns TRUE when the value of the **pos** variable is "**v**", the symbol for **verb** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='a'"** returns TRUE when the value of the **pos** variable is "**a**", the symbol for **adjective** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='p'"** returns TRUE when the value of the **pos** variable is "**p**", the symbol for **pronoun** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='n'"** returns TRUE when the value of the **pos** variable is "**n**", the symbol for **noun** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='c'"** returns TRUE when the value of the **pos** variable is "**c**", the symbol for **conjuntion** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+          + **xsl:when test="&#36;pos='u'"** returns TRUE when the value of the **pos** variable is "**u**", the symbol for **punctuation** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+          + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the pos value is blank or otherwise abnormal in the input XML. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+          
+          
+     + The next **xsl:choose** element controls for the grammatical category of **number**.  
+         + **xsl:when test="&#36;number='s'"** returns TRUE when the value of the **number** variable is "**s**", the symbol for **singular** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;number='p'"** returns TRUE when the value of the **number** variable is "**p**", the symbol for **plural** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;number='d'"** returns TRUE when the value of the **number** variable is "**d**", the symbol for **dual** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+         
+     + The next **xsl:choose** element controls for the grammatical category of **tense**.  
+         + **xsl:when test="&#36;tense='p'"** returns TRUE when the value of the **tense** variable is "**p**", the symbol for **present** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='i'"** returns TRUE when the value of the **tense** variable is "**i**", the symbol for **imperfect** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='a'"** returns TRUE when the value of the **tense** variable is "**a**", the symbol for **aorist** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='r'"** returns TRUE when the value of the **tense** variable is "**r**", the symbol for **perfect** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='l'"** returns TRUE when the value of the **tense** variable is "**l**", the symbol for **pluperfect** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='f'"** returns TRUE when the value of the **tense** variable is "**f**", the symbol for **future** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;tense='t'"** returns TRUE when the value of the **tense** variable is "**t**", the symbol for **future perfect** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+ 
+ 
+    + The next **xsl:choose** element controls for the grammatical category of **mood**. 
+         + **xsl:when test="&#36;mood='i'"** returns TRUE when the value of the **mood** variable is "**i**", the symbol for **indicative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;mood='s'"** returns TRUE when the value of the **mood** variable is "**s**", the symbol for **subjunctive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;mood='o'"** returns TRUE when the value of the **mood** variable is "**o**", the symbol for **optative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;mood='n'"** returns TRUE when the value of the **mood** variable is "**n**", the symbol for **infinitive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;mood='p'"** returns TRUE when the value of the **mood** variable is "**p**", the symbol for **participle** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case. 
+         
+         
+             
+               
+     + The next **xsl:choose** element controls for the grammatical category of **voice**. 
+         + **xsl:when test="&#36;voice='a'"** returns TRUE when the value of the **voice** variable is "**a**", the symbol for **active** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='p'"** returns TRUE when the value of the **voice** variable is "**p**", the symbol for **passive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='m'"** returns TRUE when the value of the **voice** variable is "**m**", the symbol for **middle** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;voice='e'"** returns TRUE when the value of the **voice** variable is "**e**", the symbol for **deponent** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+         
+     + The next **xsl:choose** element controls for the grammatical category of **gender**. 
+         + **xsl:when test="&#36;gender='m'"** returns TRUE when the value of the **gender** variable is "**m**", the symbol for **masculine** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;gender='f'"** returns TRUE when the value of the **gender** variable is "**f**", the symbol for **feminine** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;gender='n'"** returns TRUE when the value of the **gender** variable is "**n**", the symbol for **neuter** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+     + The next **xsl:choose** element controls for the grammatical category of **case**.
+         + **xsl:when test="&#36;case='m'"** returns TRUE when the value of the **case** variable is "**n**", the symbol for **nominative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.         
+         + **xsl:when test="&#36;case='g'"** returns TRUE when the value of the **case** variable is "**g**", the symbol for **genitive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string.
+         + **xsl:when test="&#36;case='d'"** returns TRUE when the value of the **case** variable is "**d**", the symbol for **dative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='a'"** returns TRUE when the value of the **case** variable is "**a**", the symbol for **accusative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='b'"** returns TRUE when the value of the **case** variable is "**b**", the symbol for **ablative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;case='v'"** returns TRUE when the value of the **case** variable is "**v**", the symbol for **vocative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+    + The next **xsl:choose** element controls for the grammatical category of **degree**. 
+         + **xsl:when test="&#36;degree='p'"** returns TRUE when the value of the **degree** variable is "**p**", the symbol for **positive** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;degree='c'"** returns TRUE when the value of the **degree** variable is "**c**", the symbol for **comparative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:when test="&#36;degree='s'"** returns TRUE when the value of the **degree** variable is "**s**", the symbol for **superlative** in the AGLDT. The relevant attribute is created and populated by the nested **xsl:attribute** element and its nested text string. 
+         + **xsl:otherwise** returns TRUE when none of the previous conditions are met. This element is necessary to handle cases in which the category number is inappropriate, or when the input value is missing or otherwise abnoral in the input. The nested **xsl:attribute** node assigns a value of the text string **"NA"** in this case.
+         
+
+#### Notes on attributes derived from parent of input node. 
+
+* The first step is to set a variable to identify the parent of the current node.
+     + The parent is found via the "head" attribute.
+         + **xsl:variable name="parent_id" select="./@head"** creates a variable named "parent_id" and gives it the value specified in the **select** attribute, namely the value of the **head** attribute of the current node.
+         + **xsl:variable name="parent-pos" select="substring(../word[@id = &#36;parent_id]/@postag, 1, 1)"** creates a variable with the part of speech symbol of the parent of the current node. The variable is named "parent-pos".
+             + The first argument of the **substring( )** function is an XPath expression which specifies the syntactic parent (not the XML parent) of the input word: 
+                 + in XPath, the **dot dot** indicates the parent XML node of the input node. Here, the parent is the sentence node in which the input word is nested. 
+                 + The next part of the XPath expression (parts are separated by the **/** symbol) is **word[@id = &#36;parent_id]**, which, through the **[...]** operator, specifies a particular word in the current sentence, namely that word whose **id** attribute has the value matching the **parent_id** variable. Recall that this varible gets its value from the **head** attribute of the input word. Thus, it identifies the syntactic parent of the input word.
+                 + **@postag**, the final part of the XPath expression, selects the **postag** attribute of the node indicated by the expression.
+    + Note that the other morphological variables for the syntactic parents are generated analogously to the "self-" variables detailed above. However, there are some important additions to the code.  
+        + The **xsl:choose** element differentiates treatment according to whether the **head** attribute of the input word is equal to or greater than 0.
+            + **xsl:when test="&#36;parent_id = 0"** identifies the **ROOT** of the sentence. Conventionally, the highest node in a dependency tree is considered the root, and, paradoxically, is depicted as depending on a sentence-external root. Thus, if the **head** attribute is 0, the only relevant feature applicable to its syntactic parent is the designation of its **relation** attribute as "root".
+               + **xsl:attribute name="parent-relation"** creates the attribute **parent-relation** and the nested text string adds the value "root".
+               + All other **parent-** attributes are given the value "null" to indicate that the parent node essentially does not exist.
+           + **xsl:when test="&#36;parent_id > 0"** selects all nodes in the sentence which are not the sentence root. The nested code parallels that for the **self-** attributes and needs no detailed discussion.
+     
+        
+#### Notes on attributes derived from syntactic grandparent of input node. 
+
+
+* The first step is to set a variable to identify the parent of the current node.
+     + The parent is found via the "head" attribute.
+         + **xsl:variable name="g1-parent_id"select="parent::sentence/word[@id = &#36;parent_id]/@head"** creates a variable named **g1-parent_id** whose value is produced from the evaluation of the expression in the **select** attriute. Here, the value represents the value of the **head** attribute of the syntactic parent token of the input token. In other words, the value is the **id** attribute of the syntactic grandparent.
+             + **parent::sentence**, the first element of the XPath expression, is a so-called "axis" denotation of the parent of the input node, here the matrix sentence.
+             + **word[@id = &#36;parent_id]**, the second element of the XPath expression, selects the node which is the syntactic parent of the input word.
+             + **@head"**, the last element in the XPath expression, selects the **head** attribute of the syntactic parent. 
+     + This variable is used to extract the relevant values from the syntactic grandparent. The values are stored in **g1-parent-** attributes. The process is analogous to that creating the **self-** attributes and will not be discussed in detail. However, there are some important additions to the code. 
+         + The **xsl:choose** element differentiates treatment according to whether the **head** attribute of the input word is equal to or greater than 0, or neither.
+             + **xsl:when test="&#36;g1-parent_id = 0"** selects a syntactic grandparent of the input word which is the root node of the sentence and assigns appropriate values. These values are the same as discussed above under the **parent-** attributes.
+             + **xsl:when test="&#36;g1-parent_id > 0"** selects a syntactic grandparent which is a dependent word. The nested code creates **g1-parent-** variables and assigns the appropriate values.
+             + **xsl:otherwise** catches those cases for which a synctactic grandparent does not exist.  This step is first necessary for syntactic grandparents and more distance ancestors. All words in a sentence have syntactic parents except the sentence root, for which a fictitious parent is conventionally supplied. In contrast, many words do not have syntactic grandparents.
+                   
+
+#### Notes on attributes derived from syntactic great-grandparent of input node and beyond
+
+* Features from syntactic great-grandparent and more distant ancestors are treated somewhat differently. In particular, **part of speech is the only morphological feature extracted from ancestors of this distance.** The goal of a later stage of the analysis is to use all combinations of variables to characterize texts. With 12 variables per generation, the number of possible combinations quickly outstrips computing resources. Thus, limiting variables is necessary, and the most reasonable place to cut variables is in the distant syntactic ancestors  since variables extracted from these levels most often have values of "null" or "NA".
+    + The only variables extracted for these distant syntactic are from the following attributes: **relation,** **DepDist,** **Degree,** and **postag** (part of speech only).
+    + Even these limited variables are only applicable when the **head** attribute of the target ancestor is greater than 0.
+    
+    
+          
