@@ -290,6 +290,7 @@ populate_word_element <- function(x) {
                               DepDist = node.list$DepDist[y],
                               Neighborhood = node.list$Neighborhood[y],
                               Degree = node.list$Degree[y],
+                              Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
                               Has_Sib = node.list$has_sib[y])
     
@@ -302,6 +303,7 @@ populate_word_element <- function(x) {
                               DepDist = node.list$DepDist[y],
                               Neighborhood = node.list$Neighborhood[y],
                               Degree = node.list$Degree[y],
+                              Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
                               Has_Sib = node.list$has_sib[y])
     
