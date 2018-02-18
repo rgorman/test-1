@@ -7,6 +7,8 @@ source("src/DD_functions.R")
 require(XML)
 require(igraph)
 require(magrittr)
+require(tidyverse)
+require(stringr)
 
 
 
@@ -44,10 +46,16 @@ for (i in seq_along(files.v)) {
     sent_working <- lapply(sentence.list[[j]][1:length(sentence.list[[j]])  -1], extract_words) # extract target sentence 
     # with tokens as items in list object.
     
-    node.list <- vector("list", 9)
+    node.list <- vector("list", 10)
     names(node.list) <- c("Ellipsis", "Subtree_eligibility", "Subtree", 
                           "DepDist", "Neighborhood", "Degree", "Node_Type",
-                          "parent_order", "has_sib")
+                          "parent_order", "has_sib", "node_depth")
+    
+    word_names.v <- NULL
+    word_names.v <- sent_working %>%
+      map(names) %>%
+      unlist() %>%
+      append(word_names.v, .)
     
     
     node.list$Ellipsis <- sapply(sent_working, ellipsis_identification) # logical vector with TRUE for each ellipsis node in target sentence
@@ -83,6 +91,8 @@ for (i in seq_along(files.v)) {
     node.list$parent_order <- sapply(sent_working, get_parent_order)
     
     node.list$has_sib <- sapply(sent_working, check_for_siblings)
+    
+    node.list$node_depth <- get_node_depth(sent_working)
     
     
     
@@ -128,7 +138,7 @@ for (i in seq_along(files.v)) {
   
 } # end of loop i
 
-subtree.xml[[3]]
+subtree.xml[[48]]
 
 
 get_node_type <- function(x) {
@@ -251,3 +261,84 @@ setdiff(sibs, id) ##
 
 id <- 1
 sapply(sent_working, get_sibling_order, siblings = node.list$Neighborhood)
+
+
+neigh_size <- node.list$Neighborhood %>%
+  strsplit(split = " ") %>%
+  lengths()
+
+
+
+heads <- sent_working %>%
+  map("head") %>%
+  unlist()
+
+
+root <- which(neigh_size > 1 & heads == 0)
+
+
+  
+distances(edge.graph, 5, root)
+
+sapply(1:5, distances, v = V(edge.graph), to = root)
+
+x <- seq_along(heads)
+y <- map_chr(x, ~distances(edge.graph, v = ., to = root) )
+
+as.numeric(y) %>%
+  max()
+
+y[y == Inf] <- NA
+as.integer(y)
+
+j <- 675
+
+word_names.v <- NULL
+word_names.v <- sent_working %>%
+  map(names) %>%
+  unlist() %>%
+  append(word_names.v, .)
+  
+
+
+
+get_node_depth <- function(input) {
+  
+  neigh_size <- node.list$Neighborhood %>%
+    strsplit(split = " ") %>%
+    lengths()
+  
+  heads <- input %>%
+    map("head") %>%
+    unlist()
+  
+  root <- which(neigh_size > 1 & heads == 0)
+  
+  if (length(root) == 1) {
+    
+    if ("insertion_id" %in% word_names.v) {
+      
+      x <- seq_along(heads)
+      node_depths <- map_chr(x, ~distances(edge.graph, v = ., to = root) )
+      node_depths[node_depths == Inf] <- NA
+      node_depths <- as.integer(node_depths)
+      
+    } else {
+      x <- seq_along(heads)
+      x <- x[1:length(x)-1]
+      node_depths <- map_chr(x, ~distances(edge.graph, v = ., to = root) )
+      node_depths[node_depths == Inf] <- NA
+      node_depths <- as.integer(node_depths)
+      # node_depths <- append(node_depths, NA)
+      
+      
+    }
+    
+  }
+}
+
+
+
+input <- sent_working
+node_depths
+j <- 677

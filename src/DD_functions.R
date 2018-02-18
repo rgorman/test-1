@@ -292,7 +292,8 @@ populate_word_element <- function(x) {
                               Degree = node.list$Degree[y],
                               Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
-                              Has_Sib = node.list$has_sib[y])
+                              Has_Sib = node.list$has_sib[y],
+                              Node_Depth = node.list$node_depth[y])
     
   } else {
     
@@ -305,7 +306,8 @@ populate_word_element <- function(x) {
                               Degree = node.list$Degree[y],
                               Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
-                              Has_Sib = node.list$has_sib[y])
+                              Has_Sib = node.list$has_sib[y],
+                              Node_Depth = node.list$node_depth[y])
     
   }
   
