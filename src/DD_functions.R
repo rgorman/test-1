@@ -18,17 +18,27 @@ ellipsis_identification <- function(x) {
 
 
 extract_edge_graph <- function(sentence) {
-  a <- find_heads(sentence)
-  b <- find_ids(sentence)
-  m <- matrix(a, ncol = 1)
-  m <- cbind(m, b)
-  index <- which(m[, 1] > 0)
-  m <- m[index, ]
-  if (length(m) == 2) {
-    m <- matrix(m, nrow = 1)
+  
+  if (length(sentence) >2) {
+    
+    a <- find_heads(sentence)
+    b <- find_ids(sentence)
+    m <- matrix(a, ncol = 1)
+    
+    if (colSums(m) > 0) {
+      m <- cbind(m, b)
+      index <- which(m[, 1] > 0)
+      m <- m[index, ]
+      if (length(m) == 2) {
+        m <- matrix(m, nrow = 1)
+      }
+      g <- graph_from_edgelist(m)
+      return(g)
+      
+    }
+    
   }
-  g <- graph_from_edgelist(m)
-  return(g)
+ 
 }
 
 
@@ -368,4 +378,30 @@ check_for_siblings <- function(sentence) {
   return(has_sibs)
 }
 
+
+
+get_node_depth <- function(input) {
+  
+  neigh_size <- node.list$Neighborhood %>%
+    strsplit(split = " ") %>%
+    lengths()
+  
+  heads <- input %>%
+    map("head") %>%
+    unlist()
+  
+  root <- which(neigh_size > 1 & heads == 0)
+  
+  if (length(root) == 1) {
+    
+      
+      x <- seq_along(V(edge.graph))
+      node_depths <- map_chr(x, ~distances(edge.graph, v = ., to = root) )
+      node_depths[node_depths == Inf] <- NA
+      node_depths <- as.integer(node_depths)
+      
+   
+    
+  }
+}
 

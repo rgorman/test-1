@@ -138,7 +138,10 @@ for (i in seq_along(files.v)) {
   
 } # end of loop i
 
-subtree.xml[[48]]
+
+
+
+subtree.xml[[47]]
 
 
 get_node_type <- function(x) {
@@ -341,4 +344,8 @@ get_node_depth <- function(input) {
 
 input <- sent_working
 node_depths
-j <- 677
+j <- 38
+
+map_chr(1:30, ~distances(edge.graph, v = ., to = root) )
+V(edge.graph) %>%
+  seq_along()
