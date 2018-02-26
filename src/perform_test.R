@@ -41,7 +41,7 @@ start_time <- Sys.time()
 folds <- NULL
 
 for(i in seq_along(list_of_tibbles)) {
-  folds <- part_tibs(list_of_tibbles[[i]], 50) %>%
+  folds <- part_tibs(list_of_tibbles[[i]], 2000) %>%
     length() %>%
     append(folds, .)
   
@@ -63,7 +63,7 @@ n <- 1
 
 for(i in seq_along(list_of_tibbles)) {
   tib_part <- list_of_tibbles[[i]] %>%
-    part_tibs( 50)
+    part_tibs(2000)
   
   for(j in seq_along(tib_part)) {
     target.tib <- list_of_tibbles[[i]]
@@ -149,6 +149,11 @@ for(i in seq_along(chunk.list)) {
   
 }
 
+
+
+
+
+
 end_time <- Sys.time()
 end_time - start_time
 
@@ -158,7 +163,7 @@ rm(chunk.list)
 
 
 start_time <- Sys.time()
-result <- xtabs(`n()` ~ chunk_id+combined, data = comb_3.tib, sparse = FALSE)  ## works maybe
+result <- xtabs(`n()` ~ chunk_id+combined, data = combined_rel_freq.tib, sparse = FALSE)  ## works maybe
 end_time <- Sys.time()
 end_time - start_time
 
@@ -192,6 +197,10 @@ order_for_cols <- colSums(result_2) %>%
 
 result_2 <- result_2 %>%
   select(order_for_cols)
+
+result_2 %>%
+  head() %>%
+  View()
   
   
 x <- comb_3.tib %>%

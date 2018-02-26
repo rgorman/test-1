@@ -4,17 +4,17 @@ library(XML)
 library(tidyverse)
 library(stringr)
 
-most_frequent.list <- readRDS("most_freq_list.R")
+most_frequent.list <- readRDS("reduced_var_list_Feb-14-18.rds")
 
+most_frequent.list <- reduced_atomic_vars.list
 
-
-var_names.v <- readRDS("variable_names.R")
+var_names.v <- readRDS("var_names_Feb-24-18")
 
 input.dir <- "./output_2"
 
 files.v <- dir(path=input.dir, pattern=".*xml")
 
-list_of_working_tibbles <- vector(mode = "list", length(files.v))
+# list_of_working_tibbles <- vector(mode = "list", length(files.v))
 
 for (i in seq_along(files.v)) {
   
@@ -69,6 +69,12 @@ for (i in seq_along(files.v)) {
     new_vars.m <- cbind(new_vars.m, combined_var)
     
     nomina <- append(nomina, paste0(var_atoms, collapse = "_&_"))
+    
+    if (mod(k, 500) == 0) {
+      cat("k loop", k, "\n")
+      print(Sys.time())
+    }
+    
   } # end of loop k
   
   
@@ -82,7 +88,7 @@ for (i in seq_along(files.v)) {
   
   new_vars.m <-tolower(new_vars.m)
   
-  nomina <-  c("token_id", "cite", "form", nomina)
+   nomina <-  c("token_id", nomina)
   
   
   file_name <- files.v[i] %>%
@@ -92,25 +98,30 @@ for (i in seq_along(files.v)) {
     paste0(file_name, "_token_", .) 
   
   
-  new_vars.m <- cbind(token_id, base.df[, "cite"], base.df[, "form"], new_vars.m)
+  new_vars.m <- cbind(token_id, new_vars.m)
   
   colnames(new_vars.m) <- nomina
   
   vars.tib <- as_tibble(new_vars.m)
   
-  list_of_working_tibbles[[i]] <- vars.tib
-  
   end_time <- Sys.time()
   print(paste("end of loop", i, files.v[i]))
   print(end_time - start_time)
   
+  file_name <- gsub(".xml", "", files.v[i])
+  
+  
   start_time <- Sys.time()
   print(paste("saving variables for", files.v[i]))
-  saveRDS(list_of_working_tibbles, file = "all_files_comb_vars.R")
+  saveRDS(vars.tib, file = paste0("./output_3/", file_name, ".rds"))
   end_time <- Sys.time()
   print(end_time - start_time)
   
+  rm(vars.tib)
   
 } #end of main loop 
+
+
+
 
 

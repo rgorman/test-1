@@ -193,4 +193,3 @@ for (i in seq_along(files.v)) {
   + **print(end_time - start_time)** reports the time taken by the save.
 * end of the main loop (loop i). The result is a file, saved to disk, containing a list object. Each list element in this object contains a tibble data frame object with one row for each token in the underlying XML treebank file and one column for each combined variable. The columns with metadata precede the variable columns. These tibbles can be used as input for the selection of samples for classification testing, etc.   
   
-

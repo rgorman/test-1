@@ -303,6 +303,9 @@ populate_word_element <- function(x) {
                               Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
                               Has_Sib = node.list$has_sib[y],
+                              Sib_Count = node.list$sib_count[y],
+                              Has_Sib_Before = node.list$has_sib_before[y],
+                              Has_Sib_After = node.list$has_sib_after[y],
                               Node_Depth = node.list$node_depth[y])
     
   } else {
@@ -317,6 +320,9 @@ populate_word_element <- function(x) {
                               Node_Type = node.list$Node_Type[y],
                               Parent_Order = node.list$parent_order[y],
                               Has_Sib = node.list$has_sib[y],
+                              Sib_Count = node.list$sib_count[y],
+                              Has_Sib_Before = node.list$has_sib_before[y],
+                              Has_Sib_After = node.list$has_sib_after[y],
                               Node_Depth = node.list$node_depth[y])
     
   }
@@ -364,6 +370,11 @@ get_parent_order <- function(sentence) {
 
 
 
+
+
+
+
+
 check_for_siblings <- function(sentence) {
   
   head <- sentence["head"] %>%
@@ -404,4 +415,132 @@ get_node_depth <- function(input) {
     
   }
 }
+
+
+
+
+check_sibling_count <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sib_count <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric() %>%
+      length() %>%
+      subtract(2)
+  } else {
+    
+    sib_count <- NA
+  }
+  
+ 
+  
+  return(sib_count)
+}
+
+
+check_sibling_before <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sib_count <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric() %>%
+      length() %>%
+      subtract(2)
+  } else {
+    
+    sib_count <- NA
+  }
+  
+  
+  
+  return(sib_count)
+}
+
+
+
+
+
+check_sibling_before <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  dups <- append(head, id)
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric()
+    
+    befores <- setdiff(sibs, dups) %>%
+      is_less_than(id)
+    
+    if (TRUE %in% befores) {
+      sib_before <- TRUE
+    } else {
+      sib_before <- FALSE
+    }
+    
+  } else {
+    
+    sib_before <- NA
+  }
+  
+  
+  
+  return(sib_before)
+}
+
+
+
+
+check_sibling_after <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  dups <- append(head, id)
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric()
+    
+    afters <- setdiff(sibs, dups) %>%
+      is_greater_than(id)
+    
+    if (TRUE %in% afters) {
+      sib_after <- TRUE
+    } else {
+      sib_after <- FALSE
+    }
+    
+  } else {
+    
+    sib_after <- NA
+  }
+  
+  
+  
+  return(sib_after)
+}
+
 

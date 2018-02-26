@@ -349,3 +349,143 @@ j <- 38
 map_chr(1:30, ~distances(edge.graph, v = ., to = root) )
 V(edge.graph) %>%
   seq_along()
+
+sent_working %>%
+  length()
+
+x <- extract_edge_graph(sent_working)
+
+is.null(edge.graph) %>%
+  not()
+
+most_frequent.list[[2]]
+
+rm(list = ls())
+
+holder.tib <- readRDS(file = "sample_1000_variables_all_files.rds")
+dim(sample_1000_all_files.tib)
+
+sample_1000_all_files.list %>%
+  class()
+
+
+start_time_1 <- Sys.time()
+agg_var_ct.tib  <- xtabs(`n()` ~ variable_name, data = holder.tib) %>%
+  as_tibble() # combine all frequencies in holder.tib to in one table
+end_time_1 <- Sys.time()
+print(end_time_1 - start_time_1)
+print(Sys.time())
+
+
+agg_var_ct.tib <- agg_var_ct.tib %>%
+  arrange(desc(n))
+
+
+agg_var_ct.tib$n %>%
+  quantile(., probs = (seq(0.9, 1, 0.001)))
+
+shorter_var.tib <- agg_var_ct.tib %>% 
+  filter(n >= 26896) %>% # select value that will give reasonable number of variables
+  arrange(desc(n))
+
+object.size(holder.tib)
+
+
+new_vars.m[str_detect(new_vars.m, "NA")]
+
+agg_var_ct.tib %>% 
+  filter(variable_name, str_detect(., "parent-morph-pos"))
+
+str_detect(agg_var_ct.tib[, 1], "pos")  
+
+findrow.v <-  apply(agg_var_ct.tib[, 1], 1, str_detect, pattern = "parent-morph-pos")
+
+which(findrow.v == TRUE)
+
+sapply(sent_working, check_sibling_count)
+
+sentence <- sent_working[[1]]
+
+
+
+check_sibling_before <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  dups <- append(head, id)
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric()
+    
+    befores <- setdiff(sibs, dups) %>%
+      is_less_than(id)
+    
+    if (TRUE %in% befores) {
+      sib_before <- TRUE
+    } else {
+      sib_before <- FALSE
+    }
+      
+  } else {
+    
+    sib_before <- NA
+  }
+  
+  
+  
+  return(sib_before)
+}
+
+
+
+
+check_sibling_after <- function(sentence) {
+  
+  head <- sentence["head"] %>%
+    as.numeric()
+  
+  dups <- append(head, id)
+  
+  id <- sentence["id"] %>%
+    as.numeric()
+  
+  if (node.list$has_sib[id] == TRUE) {
+    sibs <- strsplit(node.list$Neighborhood[head], split = " ") %>%
+      unlist() %>%
+      as.numeric()
+    
+    afters <- setdiff(sibs, dups) %>%
+      is_greater_than(id)
+    
+    if (TRUE %in% afters) {
+      sib_after <- TRUE
+    } else {
+      sib_after <- FALSE
+    }
+    
+  } else {
+    
+    sib_after <- NA
+  }
+  
+  
+  
+  return(sib_after)
+}
+
+
+sapply(sent_working, check_sibling_after)
+
+
+
+
+
+setdiff(sibs, dups)
+
+sapply(sent_working, check_sibling_before)

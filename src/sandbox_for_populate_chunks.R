@@ -370,3 +370,71 @@ head(tib_3)
 var_names <- colnames(tib_3)
 var_names[1] <- "chunk_id"
 tib_3 <- set_colnames(tib_3, var_names)
+
+
+head(holder.tib) %>%
+  View()
+
+head(new_vars.m) %>%
+  View()
+
+object.size(holder.tib)
+
+saveRDS(holder.tib, file = "sample_1000_variables_all_files.rds")
+
+rm(a)
+gc()
+
+agg_var_ct.tib %>%
+  head() %>%
+  View()
+
+reduced_atomic_vars.list
+
+
+sample(nrow(list_of_tibbles[[i]]), 1000) 
+
+sampled_list_of_tibbles[[1]]
+
+vars.tib %>%
+  head() %>%
+  View()
+
+
+nomina[1:10]
+
+nomina <- nomina[4:3230]
+
+dim(chunk.list[[1]])
+
+choose(72, 1:4) %>%
+  sum()
+
+z <- 1:3227
+
+for (z in 1:3227) {
+  if (mod(z, 322) == 0) {
+    cat("k loop", z, "\n")
+  }
+  
+}
+
+3227/322
+
+mod(z, 1000)
+
+for(n in c(2,5,10,20,50)) {
+  x <- stats::rnorm(n)
+  cat(n, ": ", sum(x^2), "\n", sep = "")
+}
+
+100 %% 10
+
+
+
+paste(input_dir, files.v[i], sep = "/")
+
+
+combined_rel_freq.tib %>%
+  head() %>%
+  View()
